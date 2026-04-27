@@ -11,7 +11,7 @@ import 'features/questionnaire/providers/questionnaire_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const AppBootstrap());
+  runApp(const MyApp());
   _configureSystemUi();
 }
 
@@ -28,8 +28,8 @@ void _configureSystemUi() {
   );
 }
 
-class AppBootstrap extends StatelessWidget {
-  const AppBootstrap({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
