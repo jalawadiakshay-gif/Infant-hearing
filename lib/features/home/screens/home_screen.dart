@@ -89,6 +89,17 @@ class HomeScreen extends StatelessWidget {
 
             const SliverToBoxAdapter(child: SizedBox(height: 28)),
 
+            // Add this:
+SliverToBoxAdapter(
+              child: Center(
+                child: ElevatedButton(
+                  onPressed: () =>
+                      Navigator.pushNamed(context, RouteConstants.ashaLogin),
+                  child: const Text('ASHA Login (test)'),
+                ),
+              ),
+            ),
+
             // ── Hero Banner ──────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(

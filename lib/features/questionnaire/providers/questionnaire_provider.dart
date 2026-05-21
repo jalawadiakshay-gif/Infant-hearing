@@ -15,6 +15,19 @@ class QuestionnaireProvider extends ChangeNotifier {
   ScoringResult? _scoringResult;
   int _babyAgeMonths = 0;
 
+    String? _filledByAshaId;        // null = filled by parent
+  String? _forInfantId;           // null = provider's own infant
+ 
+  String? get filledByAshaId => _filledByAshaId;
+  String? get forInfantId => _forInfantId;
+  bool get isFilledByAsha => _filledByAshaId != null;
+
+    void setAshaContext({required String ashaId, required String infantId}) {
+    _filledByAshaId = ashaId;
+    _forInfantId = infantId;
+    notifyListeners();
+  }
+
   // ── Getters ────────────────────────────────────────────────────────────────
   List<QuestionnaireSection> get sections => _sections;
   Map<String, AnswerValue> get answers => Map.unmodifiable(_answers);
@@ -153,6 +166,8 @@ class QuestionnaireProvider extends ChangeNotifier {
     _currentSectionIndex = 0;
     _isCompleted = false;
     _scoringResult = null;
+    _filledByAshaId = null;   // ← add this line
+    _forInfantId = null;   // ← add this line
     notifyListeners();
   }
 }

@@ -6,6 +6,7 @@ import 'features/auth/providers/auth_provider.dart';
 import 'features/parent/providers/parent_provider.dart';
 import 'features/baby/providers/baby_provider.dart';
 import 'features/questionnaire/providers/questionnaire_provider.dart';
+import 'features/asha/providers/asha_provider.dart';
 
 
 
@@ -39,6 +40,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider<ParentProvider>(create: (_) => ParentProvider()),
         ChangeNotifierProvider<BabyProvider>(create: (_) => BabyProvider()),
         ChangeNotifierProvider(create: (_) => QuestionnaireProvider()),
+        ChangeNotifierProvider(create: (_) => AshaProvider()),
       ],
       child: const InfantHearingApp(),
     );

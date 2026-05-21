@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 
+// ── ADD THIS: role enum ────────────────────────────────────────────────────────
+enum UserRole { parent, asha }
+// ──────────────────────────────────────────────────────────────────────────────
+
 enum AuthStatus { idle, loading, success, error }
 
 class AuthProvider extends ChangeNotifier {
   AuthStatus _status = AuthStatus.idle;
   String? _errorMessage;
   bool _isAuthenticated = false;
+
+  // ── ADD THIS: track which role is logged in ───────────────────────────────
+  UserRole _currentRole = UserRole.parent;
+  UserRole get currentRole => _currentRole;
+  // ─────────────────────────────────────────────────────────────────────────
 
   // In-memory user store (Phase 1 — no backend)
   final List<Map<String, String>> _users = [];
@@ -28,15 +37,14 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _setStatus(AuthStatus.loading);
 
-    // Simulate network delay
     await Future.delayed(const Duration(milliseconds: 1200));
 
-    // Check duplicate email
     final exists = _users.any(
       (u) => u['email']?.toLowerCase() == email.toLowerCase(),
     );
     if (exists) {
-      _setStatus(AuthStatus.error, error: 'An account with this email already exists.');
+      _setStatus(AuthStatus.error,
+          error: 'An account with this email already exists.');
       return false;
     }
 
@@ -59,7 +67,6 @@ class AuthProvider extends ChangeNotifier {
 
     await Future.delayed(const Duration(milliseconds: 1000));
 
-    // For demo: allow any valid format login or check registered users
     final user = _users.firstWhere(
       (u) =>
           u['email']?.toLowerCase() == email.toLowerCase() &&
@@ -67,19 +74,21 @@ class AuthProvider extends ChangeNotifier {
       orElse: () => {},
     );
 
-    // Demo mode: if no registered users, allow demo login
     if (user.isEmpty && _users.isEmpty) {
       _isAuthenticated = true;
+      _currentRole = UserRole.parent; // ← ADD THIS LINE
       _setStatus(AuthStatus.success);
       return true;
     }
 
     if (user.isEmpty) {
-      _setStatus(AuthStatus.error, error: 'Invalid email or password. Please try again.');
+      _setStatus(AuthStatus.error,
+          error: 'Invalid email or password. Please try again.');
       return false;
     }
 
     _isAuthenticated = true;
+    _currentRole = UserRole.parent; // ← ADD THIS LINE
     _setStatus(AuthStatus.success);
     return true;
   }
@@ -88,6 +97,7 @@ class AuthProvider extends ChangeNotifier {
     _isAuthenticated = false;
     _status = AuthStatus.idle;
     _errorMessage = null;
+    _currentRole = UserRole.parent; // ← ADD THIS LINE
     notifyListeners();
   }
 
