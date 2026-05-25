@@ -1,0 +1,225 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import '../models/questionnaire_models.dart';
+import '../models/questionnaire_data.dart';
+import '../../../shared/repositories/questionnaire_repository.dart';
+import '../../../shared/services/local_storage_service.dart';
+
+class QuestionnaireProvider extends ChangeNotifier {
+  final QuestionnaireRepository questionnaireRepository;
+  final LocalStorageService storage;
+
+  QuestionnaireProvider({
+    required this.questionnaireRepository,
+    required this.storage,
+  }) {
+    _loadFromStorage();
+  }
+
+  List<QuestionnaireSection> _sections = [];
+  final Map<String, AnswerValue> _answers = {};
+  int _currentSectionIndex = 0;
+  bool _isCompleted = false;
+  ScoringResult? _scoringResult;
+  int _babyAgeMonths = 0;
+
+  List<QuestionnaireSection> get sections => _sections;
+  Map<String, AnswerValue> get answers => Map.unmodifiable(_answers);
+  int get currentSectionIndex => _currentSectionIndex;
+  bool get isCompleted => _isCompleted;
+  ScoringResult? get scoringResult => _scoringResult;
+  int get babyAgeMonths => _babyAgeMonths;
+
+  QuestionnaireSection get currentSection => _sections[_currentSectionIndex];
+  bool get isFirstSection => _currentSectionIndex == 0;
+  bool get isLastSection => _currentSectionIndex == _sections.length - 1;
+
+  double get overallProgress {
+    if (_sections.isEmpty) return 0;
+    final scoredQuestions = _sections
+        .expand((s) => s.questions)
+        .where((q) => q.scored)
+        .toList();
+    if (scoredQuestions.isEmpty) return 0;
+    final answered = scoredQuestions
+        .where((q) => _answers[q.id] != null && _answers[q.id] != AnswerValue.unanswered)
+        .length;
+    return answered / scoredQuestions.length;
+  }
+
+  int get answeredInCurrentSection {
+    if (_sections.isEmpty) return 0;
+    return currentSection.questions
+        .where((q) =>
+            _answers[q.id] != null &&
+            _answers[q.id] != AnswerValue.unanswered)
+        .length;
+  }
+
+  bool get currentSectionComplete {
+    if (_sections.isEmpty) return false;
+    return currentSection.questions
+        .every((q) => _answers[q.id] != null && _answers[q.id] != AnswerValue.unanswered);
+  }
+
+  void initialize(int babyAgeMonths) {
+    _babyAgeMonths = babyAgeMonths;
+    _sections = QuestionnaireData.getSections(babyAgeMonths: babyAgeMonths);
+    _answers.clear();
+    _currentSectionIndex = 0;
+    _isCompleted = false;
+    _scoringResult = null;
+    _clearStorage();
+    notifyListeners();
+  }
+
+  void answer(String questionId, AnswerValue value) {
+    _answers[questionId] = value;
+    notifyListeners();
+  }
+
+  AnswerValue getAnswer(String questionId) {
+    return _answers[questionId] ?? AnswerValue.unanswered;
+  }
+
+  void nextSection() {
+    if (!isLastSection) {
+      _currentSectionIndex++;
+      notifyListeners();
+    }
+  }
+
+  void previousSection() {
+    if (!isFirstSection) {
+      _currentSectionIndex--;
+      notifyListeners();
+    }
+  }
+
+  Future<void> submit() async {
+    _scoringResult = _computeScore();
+    _isCompleted = true;
+    _saveToStorage();
+    
+    try {
+      final answersMap = _answers.map((key, value) => MapEntry(key, value.toString()));
+      await questionnaireRepository.submitAnswers({
+        "babyAgeMonths": _babyAgeMonths,
+        "answers": answersMap,
+        "totalScore": _scoringResult!.totalScore,
+        "riskPercentage": _scoringResult!.riskPercentage,
+        "result": _scoringResult!.result.toString(),
+      });
+    } catch (e) {
+      // Handle error
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  ScoringResult _computeScore() {
+    double totalScore = 0;
+    double maxScore = 0;
+    final Map<int, double> sectionScores = {};
+
+    for (final section in _sections) {
+      double sectionScore = 0;
+      double sectionMax = 0;
+
+      for (final question in section.questions) {
+        if (!question.scored) continue;
+        final answer = _answers[question.id] ?? AnswerValue.no;
+        sectionScore += answer.score;
+        sectionMax += 1.0;
+      }
+
+      sectionScores[section.index] = sectionMax > 0
+          ? (sectionScore / sectionMax) * 100
+          : 0;
+      totalScore += sectionScore;
+      maxScore += sectionMax;
+    }
+
+    final riskPct = maxScore > 0 ? (totalScore / maxScore) * 100 : 0.0;
+
+    RiskResult result;
+    if (riskPct <= 30) {
+      result = RiskResult.pass;
+    } else if (riskPct <= 60) {
+      result = RiskResult.monitor;
+    } else {
+      result = RiskResult.refer;
+    }
+
+    return ScoringResult(
+      totalScore: totalScore,
+      maxScore: maxScore,
+      riskPercentage: riskPct,
+      result: result,
+      sectionScores: sectionScores,
+    );
+  }
+
+  void reset() {
+    _answers.clear();
+    _currentSectionIndex = 0;
+    _isCompleted = false;
+    _scoringResult = null;
+    _clearStorage();
+    notifyListeners();
+  }
+
+  // ── Persistence ──────────────────────────────────────────────────────────
+
+  static const String _keyPrefix = 'questionnaire_';
+  static const String _keyCompleted = '${_keyPrefix}completed';
+  static const String _keyScoring = '${_keyPrefix}scoring';
+  static const String _keyAge = '${_keyPrefix}age';
+
+  void _saveToStorage() {
+    storage.setBool(_keyCompleted, value: _isCompleted);
+    storage.setInt(_keyAge, _babyAgeMonths);
+    if (_scoringResult != null) {
+      final map = {
+        'totalScore': _scoringResult!.totalScore,
+        'maxScore': _scoringResult!.maxScore,
+        'riskPercentage': _scoringResult!.riskPercentage,
+        'result': _scoringResult!.result.index,
+        'sectionScores': _scoringResult!.sectionScores.map((k, v) => MapEntry(k.toString(), v)),
+      };
+      storage.setString(_keyScoring, jsonEncode(map));
+    }
+  }
+
+  void _loadFromStorage() {
+    _isCompleted = storage.getBool(_keyCompleted) ?? false;
+    _babyAgeMonths = storage.getInt(_keyAge) ?? 0;
+    final scoringStr = storage.getString(_keyScoring);
+    if (scoringStr != null) {
+      try {
+        final map = jsonDecode(scoringStr) as Map<String, dynamic>;
+        _scoringResult = ScoringResult(
+          totalScore: (map['totalScore'] as num).toDouble(),
+          maxScore: (map['maxScore'] as num).toDouble(),
+          riskPercentage: (map['riskPercentage'] as num).toDouble(),
+          result: RiskResult.values[map['result'] as int],
+          sectionScores: (map['sectionScores'] as Map<String, dynamic>).map(
+            (k, v) => MapEntry(int.parse(k), (v as num).toDouble()),
+          ),
+        );
+        // Also re-initialize sections if we have age
+        if (_babyAgeMonths > 0) {
+          _sections = QuestionnaireData.getSections(babyAgeMonths: _babyAgeMonths);
+        }
+      } catch (e) {
+        debugPrint('QuestionnaireProvider: Error loading scoring result: $e');
+      }
+    }
+  }
+
+  void _clearStorage() {
+    storage.remove(_keyCompleted);
+    storage.remove(_keyScoring);
+    storage.remove(_keyAge);
+  }
+}

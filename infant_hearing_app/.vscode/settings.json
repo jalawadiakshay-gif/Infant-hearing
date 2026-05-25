@@ -1,0 +1,16 @@
+{
+  "terminal.integrated.env.windows": {
+    "PATH": "E:\\flutter\\bin;${env:PATH}"
+  },
+  "terminal.integrated.profiles.windows": {
+    "PowerShell": {
+      "source": "PowerShell",
+      "args": [
+        "-NoExit",
+        "-Command",
+        "$env:Path = 'E:\\flutter\\bin;' + $env:Path"
+      ]
+    }
+  },
+  "terminal.integrated.defaultProfile.windows": "PowerShell"
+}

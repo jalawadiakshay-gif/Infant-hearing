@@ -1,0 +1,54 @@
+name: infant_hearing_app
+description: Baalshravya — Early Infant Hearing Detection System
+version: 1.0.0+1
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+  flutter: '>=3.16.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  provider: ^6.1.2
+  shared_preferences: ^2.5.2
+
+  # sqflite and sqflite_common_ffi are NOT needed — LocalStorageService
+  # uses SharedPreferences only. No SQLite calls exist anywhere in the codebase.
+  # DO NOT ADD sqflite.
+
+  flutter_tts: ^4.2.2
+  speech_to_text: ^7.0.0
+  http: ^1.2.1
+
+  # 'any' lets flutter_localizations resolve intl internally without conflict
+  intl: any
+
+  audioplayers: ^6.1.1
+  camera: ^0.11.0+2
+  path_provider: ^2.1.3
+  path: ^1.9.0
+  google_mlkit_face_detection: ^0.11.0
+  google_fonts: ^6.2.1
+
+  pdf: ^3.11.1
+  printing: ^5.13.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  generate: false
+  uses-material-design: true
+
+  assets:
+    - assets/audio/
+    - lib/core/localization/l10n/app_en.arb
+    - lib/core/localization/l10n/app_hi.arb
+    - lib/core/localization/l10n/app_kn.arb
+    - lib/core/localization/l10n/app_mr.arb
