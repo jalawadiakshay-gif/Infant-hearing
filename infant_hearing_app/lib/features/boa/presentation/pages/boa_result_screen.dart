@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:infant_hearing_app/core/theme/app_colors.dart';
 import 'package:infant_hearing_app/core/theme/app_spacing.dart';
 import 'package:infant_hearing_app/core/theme/app_text_styles.dart';
@@ -124,10 +125,7 @@ class BoaResultScreen extends StatelessWidget {
                 onPressed: () async {
                   await controller.submitResult();
                   if (context.mounted) {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      RouteConstants.mainLayout,
-                      (route) => false,
-                    );
+                    context.go(RouteConstants.mainLayout);
                   }
                 },
               ),
@@ -144,10 +142,7 @@ class BoaResultScreen extends StatelessWidget {
                 onPressed: () {
                   controller.reset();
                   context.read<BoaChecklistController>().reset();
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    RouteConstants.mainLayout,
-                    (route) => false,
-                  );
+                  context.go(RouteConstants.mainLayout);
                 },
               ),
               const SizedBox(height: AppSpacing.xxxl),

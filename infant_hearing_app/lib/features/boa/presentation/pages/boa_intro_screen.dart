@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:infant_hearing_app/core/theme/app_colors.dart';
 import 'package:infant_hearing_app/core/theme/app_spacing.dart';
 import 'package:infant_hearing_app/core/theme/app_text_styles.dart';
@@ -19,7 +20,7 @@ class BoaIntroScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(l10n.boaTest),
         leading: BackButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => context.pop(),
         ),
       ),
       body: SafeArea(
@@ -63,8 +64,7 @@ class BoaIntroScreen extends StatelessWidget {
               AppPrimaryButton(
                 label: l10n.continueButton,
                 icon: Icons.arrow_forward_rounded,
-                onPressed: () => Navigator.of(context)
-                    .pushNamed(RouteConstants.boaChecklist),
+                onPressed: () => context.push(RouteConstants.boaWizard),
               ),
               const SizedBox(height: AppSpacing.xxxl),
             ],

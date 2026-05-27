@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:infant_hearing_app/core/theme/app_colors.dart';
 import 'package:infant_hearing_app/core/theme/app_spacing.dart';
 import 'package:infant_hearing_app/core/theme/app_text_styles.dart';
@@ -48,11 +49,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await context.read<AuthProvider>().logout();
 
     if (!mounted) return;
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      RouteConstants.phoneLogin,
-      (route) => false,
-    );
+    context.go(RouteConstants.roleSelection);
   }
 
   @override
@@ -86,7 +83,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _SettingsTile(
                 icon: Icons.person_outline,
                 label: 'Edit Profile',
-                onTap: () => Navigator.pushNamed(context, RouteConstants.profile),
+                onTap: () => context.push(RouteConstants.profile),
               ),
             ],
           ),

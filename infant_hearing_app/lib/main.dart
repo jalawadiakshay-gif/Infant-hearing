@@ -18,6 +18,7 @@ import 'features/parent/services/parent_api_service.dart';
 import 'features/questionnaire/providers/questionnaire_provider.dart';
 import 'features/questionnaire/services/questionnaire_api_service.dart';
 import 'features/boa/services/boa_api_service.dart';
+import 'features/asha/providers/asha_provider.dart';
 import 'shared/repositories/auth_repository.dart';
 import 'shared/repositories/baby_repository.dart';
 import 'shared/repositories/parent_repository.dart';
@@ -103,6 +104,7 @@ void main() async {
           ChangeNotifierProvider.value(value: speech),
           ChangeNotifierProvider.value(value: storage),
           ChangeNotifierProvider.value(value: appProvider),
+          ChangeNotifierProvider(create: (_) => AshaProvider()),
 
           ChangeNotifierProvider.value(value: authProvider),
           ChangeNotifierProvider.value(value: parentProvider),

@@ -36,6 +36,15 @@ abstract class RouteConstants {
   // ── BOA Module ─────────────────────────────────────────────────
   static const String boaTest      = '/boa-test';     // legacy alias kept
   static const String boaIntro     = '/boa-intro';
+  static const String boaWizard    = '/boa-wizard';
   static const String boaChecklist = '/boa-checklist';
   static const String boaResult    = '/boa-result';
+
+  // ── ASHA Module ────────────────────────────────────────────────
+  static const String ashaLogin           = '/asha-login';
+  static const String ashaDashboard       = '/asha-dashboard';
+  static const String ashaVillage         = '/asha-village';
+  static const String ashaInfantDetail    = '/asha-infant-detail';
+  static const String ashaBatchRegistration = '/asha-batch-registration';
+  static const String ashaBoaTest         = '/asha-boa-test';
 }

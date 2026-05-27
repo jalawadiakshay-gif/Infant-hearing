@@ -15,6 +15,9 @@ dependencies:
 
   provider: ^6.1.2
   shared_preferences: ^2.5.2
+  go_router: ^13.2.0
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
 
   # sqflite and sqflite_common_ffi are NOT needed — LocalStorageService
   # uses SharedPreferences only. No SQLite calls exist anywhere in the codebase.
@@ -25,7 +28,7 @@ dependencies:
   http: ^1.2.1
 
   # 'any' lets flutter_localizations resolve intl internally without conflict
-  intl: any
+  intl: ^0.20.2
 
   audioplayers: ^6.1.1
   camera: ^0.11.0+2
@@ -36,6 +39,12 @@ dependencies:
 
   pdf: ^3.11.1
   printing: ^5.13.2
+  flutter_animate: ^4.5.0
+  lottie: ^3.1.2
+  cached_network_image: ^3.3.1
+  connectivity_plus: ^6.0.3
+  flutter_local_notifications: ^17.1.2
+  syncfusion_flutter_charts: ^28.1.38
 
 dev_dependencies:
   flutter_test:

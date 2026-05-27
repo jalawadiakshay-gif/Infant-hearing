@@ -4,6 +4,7 @@ import 'package:infant_hearing_app/core/theme/app_colors.dart';
 import 'package:infant_hearing_app/core/theme/app_spacing.dart';
 import 'package:infant_hearing_app/core/theme/app_text_styles.dart';
 import 'package:infant_hearing_app/core/constants/route_constants.dart';
+import 'package:go_router/go_router.dart';
 import 'package:infant_hearing_app/shared/widgets/app_button.dart';
 import 'package:infant_hearing_app/shared/widgets/app_card.dart';
 import '../providers/questionnaire_provider.dart';
@@ -42,9 +43,9 @@ class ScreeningTabScreen extends StatelessWidget {
               statusColor: isQuestionnaireComplete ? AppColors.success : AppColors.primary,
               onTap: () {
                 if (isQuestionnaireComplete) {
-                  Navigator.pushNamed(context, RouteConstants.questionnaireResult);
+                  context.push(RouteConstants.questionnaireResult);
                 } else {
-                  Navigator.pushNamed(context, RouteConstants.questionnaire);
+                  context.push(RouteConstants.questionnaire);
                 }
               },
             ),
@@ -77,9 +78,9 @@ class ScreeningTabScreen extends StatelessWidget {
                   return;
                 }
                 if (isBoaComplete) {
-                  Navigator.pushNamed(context, RouteConstants.boaResult);
+                  context.push(RouteConstants.boaResult);
                 } else {
-                  Navigator.pushNamed(context, RouteConstants.boaIntro);
+                  context.push(RouteConstants.boaIntro);
                 }
               },
             ),
@@ -87,15 +88,15 @@ class ScreeningTabScreen extends StatelessWidget {
             AppPrimaryButton(
               onPressed: () {
                 if (isBoaComplete) {
-                  Navigator.pushNamed(context, RouteConstants.history);
+                  context.push(RouteConstants.history);
                 } else if (isQuestionnaireComplete) {
                   if (needsBoa) {
-                    Navigator.pushNamed(context, RouteConstants.boaIntro);
+                    context.push(RouteConstants.boaIntro);
                   } else {
-                    Navigator.pushNamed(context, RouteConstants.questionnaireResult);
+                    context.push(RouteConstants.questionnaireResult);
                   }
                 } else {
-                  Navigator.pushNamed(context, RouteConstants.questionnaire);
+                  context.push(RouteConstants.questionnaire);
                 }
               },
               label: isBoaComplete

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -143,8 +144,7 @@ class QuestionnaireResultScreen extends StatelessWidget {
                 AppPrimaryButton(
                   label: l10n.proceedToBoa,
                   icon: Icons.hearing_rounded,
-                  onPressed: () => Navigator.of(context)
-                      .pushNamed(RouteConstants.boaIntro),
+                  onPressed: () => context.push(RouteConstants.boaIntro),
                 ),
                 const SizedBox(height: AppSpacing.m),
               ],
@@ -164,8 +164,7 @@ class QuestionnaireResultScreen extends StatelessWidget {
                 icon: Icons.home_outlined,
                 onPressed: () {
                   provider.reset();
-                  Navigator.pushReplacementNamed(
-                      context, RouteConstants.home);
+                  context.go(RouteConstants.mainLayout);
                 },
               ),
               const SizedBox(height: AppSpacing.xxxl),

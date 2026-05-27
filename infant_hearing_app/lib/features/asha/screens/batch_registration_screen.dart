@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/asha_provider.dart';
 import '../widgets/batch_infant_card_widget.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../shared/widgets/app_button.dart';
+import 'package:infant_hearing_app/core/theme/app_colors.dart';
+import 'package:infant_hearing_app/shared/widgets/app_button.dart';
 
 class BatchRegistrationScreen extends StatefulWidget {
   const BatchRegistrationScreen({super.key});

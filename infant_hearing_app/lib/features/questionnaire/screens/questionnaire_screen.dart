@@ -5,7 +5,9 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/providers/language_provider.dart';
+import '../../../core/services/tts_service.dart';
 import '../../../features/baby/providers/baby_provider.dart';
+import '../../../features/asha/providers/asha_provider.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../providers/questionnaire_provider.dart';
@@ -14,40 +16,89 @@ import '../widgets/section_progress_header.dart';
 import 'questionnaire_result_screen.dart';
 
 class QuestionnaireScreen extends StatefulWidget {
-  const QuestionnaireScreen({super.key});
+  final Map<String, dynamic>? arguments;
+  const QuestionnaireScreen({super.key, this.arguments});
 
   @override
   State<QuestionnaireScreen> createState() => _QuestionnaireScreenState();
 }
 
-class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
+class _QuestionnaireScreenState extends State<QuestionnaireScreen> with WidgetsBindingObserver {
   final _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final baby = context.read<BabyProvider>().baby;
-      context.read<QuestionnaireProvider>().initialize(
-            baby?.ageMonths ?? 0,
-          );
+      final args = widget.arguments;
+      final int ageMonths;
+      
+      if (args != null && args.containsKey('ageMonths')) {
+        ageMonths = args['ageMonths'] as int;
+      } else {
+        final baby = context.read<BabyProvider>().baby;
+        ageMonths = baby?.ageMonths ?? 0;
+      }
+      
+      context.read<QuestionnaireProvider>().initialize(ageMonths);
     });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stopTts();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _onNext(QuestionnaireProvider provider) {
+  @override
+  void deactivate() {
+    _stopTts();
+    super.deactivate();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _stopTts();
+    }
+  }
+
+  void _stopTts() {
+    // Access provider/service safely
+    if (mounted) {
+      Provider.of<TtsService>(context, listen: false).stop();
+    }
+  }
+
+  void _onNext(QuestionnaireProvider provider) async {
     if (!provider.currentSectionComplete) {
       _showIncompleteDialog();
       return;
     }
 
     if (provider.isLastSection) {
-      provider.submit();
+      await provider.submit();
+      
+      final args = widget.arguments;
+      if (args != null && args['filledByAsha'] == true) {
+        final infantId = args['infantId'] as String;
+        final ashaProvider = context.read<AshaProvider>();
+        
+        await ashaProvider.saveQuestionnaireResult(
+          infantId: infantId,
+          result: {
+            'totalScore': provider.scoringResult?.totalScore,
+            'riskPercentage': provider.scoringResult?.riskPercentage,
+            'result': provider.scoringResult?.result.toString(),
+            'answers': provider.answers.map((k, v) => MapEntry(k, v.toString())),
+          },
+        );
+      }
+
+      if (!mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => ChangeNotifierProvider.value(
@@ -57,6 +108,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
         ),
       );
     } else {
+      _stopTts();
       provider.nextSection();
       _scrollController.animateTo(
         0,
@@ -70,6 +122,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
     if (provider.isFirstSection) {
       Navigator.of(context).pop();
     } else {
+      _stopTts();
       provider.previousSection();
       _scrollController.animateTo(
         0,

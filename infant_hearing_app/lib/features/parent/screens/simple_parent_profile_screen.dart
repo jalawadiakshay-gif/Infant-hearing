@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:infant_hearing_app/core/constants/route_constants.dart';
 import 'package:infant_hearing_app/features/parent/models/parent_model.dart';
 import 'package:infant_hearing_app/features/parent/providers/parent_provider.dart';
@@ -60,11 +61,7 @@ class _SimpleParentProfileScreenState
 
     // FIX 7: Navigate to babyProfile (next onboarding step).
     // _RootNavigator will then forward to MainLayoutScreen once baby is saved.
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      RouteConstants.babyProfile,
-      (route) => false,
-    );
+    context.go(RouteConstants.babyProfile);
   }
 
   @override

@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
+import 'package:infant_hearing_app/core/theme/app_colors.dart';
+import 'package:infant_hearing_app/core/constants/route_constants.dart';
+import 'package:infant_hearing_app/core/utils/report_generator.dart';
+import 'package:printing/printing.dart';
 import '../providers/asha_provider.dart';
 import '../models/boa_result_model.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/route_constants.dart';
 
 class AshaInfantDetailScreen extends StatelessWidget {
-  const AshaInfantDetailScreen({super.key});
+  final Map<String, dynamic> infant;
+  const AshaInfantDetailScreen({super.key, required this.infant});
 
   @override
   Widget build(BuildContext context) {
-    final args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    final infant = args?['infant'] as Map<String, dynamic>? ?? {};
-
     final name = infant['name'] as String? ?? 'Unnamed';
     final ageMonths = infant['ageMonths'] as int? ?? 0;
     final gender = infant['gender'] as String? ?? '';
@@ -108,10 +108,9 @@ class AshaInfantDetailScreen extends StatelessWidget {
                 onTap: () {
                   // Navigate to the existing questionnaire screen,
                   // passing context so the provider knows it's ASHA-filled
-                  Navigator.pushNamed(
-                    context,
+                  context.push(
                     RouteConstants.questionnaire,
-                    arguments: {
+                    extra: {
                       'ageMonths': ageMonths,
                       'infantId': infantId,
                       'infantName': name,
@@ -130,10 +129,9 @@ class AshaInfantDetailScreen extends StatelessWidget {
                     ? 'Result recorded — tap to view'
                     : 'Worker-operated behavioural observation audiometry',
                 isDone: hasBoaResult,
-                onTap: () => Navigator.pushNamed(
-                  context,
+                onTap: () => context.push(
                   RouteConstants.ashaBoaTest,
-                  arguments: {
+                  extra: {
                     'infant': infant,
                   },
                 ),
@@ -179,6 +177,18 @@ class AshaInfantDetailScreen extends StatelessWidget {
                           ),
                         ),
                       ],
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final pdf = await ReportGenerator.generateBoaReport(boaResult);
+                            await Printing.layoutPdf(onLayout: (_) => pdf);
+                          },
+                          icon: const Icon(Icons.picture_as_pdf_rounded),
+                          label: const Text('Download Report'),
+                        ),
+                      ),
                     ],
                   ),
                 ),

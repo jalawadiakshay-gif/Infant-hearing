@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
+import 'package:infant_hearing_app/core/constants/route_constants.dart';
 import 'package:infant_hearing_app/core/localization/app_localizations.dart';
 import 'package:infant_hearing_app/core/theme/app_colors.dart';
 import 'package:infant_hearing_app/core/theme/app_spacing.dart';
@@ -96,9 +98,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
       
       if (mounted) {
         if (success) {
-          if (Navigator.canPop(context)) {
-            Navigator.pop(context);
-          }
+          context.go(RouteConstants.babyProfile);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -118,13 +118,14 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.parentInfo),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () => context.read<AuthProvider>().logout(),
-          ),
-        ],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () async {
+            await context.read<AuthProvider>().logout();
+            if (mounted) context.go(RouteConstants.phoneLogin);
+          },
+        ),
+        title: const Text('Parent Profile'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.l),
@@ -133,6 +134,13 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Text(
+                'Complete your profile as a primary guardian.',
+                style: AppTextStyles.bodyMedium?.copyWith(color: AppColors.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              
               _buildSectionTitle('BASIC INFORMATION'),
               AppCard(
                 child: Column(
@@ -141,7 +149,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
                     const SizedBox(height: AppSpacing.m),
                     AppTextField(controller: _phoneController, label: l10n.parentPhone, prefixIcon: Icons.phone_outlined, readOnly: true),
                     const SizedBox(height: AppSpacing.m),
-                    AppTextField(controller: _emailController, label: l10n.email, prefixIcon: Icons.email_outlined, validator: null),
+                    AppTextField(controller: _emailController, label: 'Email Address (Optional)', prefixIcon: Icons.email_outlined, validator: null),
                   ],
                 ),
               ),
@@ -154,9 +162,9 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
                     DropdownButtonFormField<String>(
                       value: _relationship,
                       style: AppTextStyles.bodyLarge,
-                      decoration: InputDecoration(
-                        labelText: l10n.parentRelation,
-                        prefixIcon: const Icon(Icons.people_outline, size: 20),
+                      decoration: const InputDecoration(
+                        labelText: 'Relationship to Child',
+                        prefixIcon: Icon(Icons.people_outline, size: 20),
                       ),
                       items: ['Mother', 'Father', 'Guardian'].map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
                       onChanged: (v) => setState(() => _relationship = v!),
@@ -164,7 +172,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
                     const SizedBox(height: AppSpacing.m),
                     AppTextField(
                       controller: _emergencyContactController,
-                      label: 'Emergency Contact',
+                      label: 'Emergency Contact Number',
                       prefixIcon: Icons.contact_phone_outlined,
                       keyboardType: TextInputType.phone,
                     ),
@@ -221,7 +229,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
               AppPrimaryButton(
                 onPressed: isLoading ? null : () => _saveProfile(l10n),
                 isLoading: isLoading,
-                label: l10n.save,
+                label: 'Save & Next: Add Your Child',
               ),
               const SizedBox(height: AppSpacing.xxxl),
             ],
@@ -238,7 +246,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
         title,
         style: AppTextStyles.caption.copyWith(
           fontWeight: FontWeight.bold,
-          color: AppColors.primary,
+          color: AppColors.info,
           letterSpacing: 1.0,
         ),
       ),

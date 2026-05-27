@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:camera/camera.dart';
+import 'package:go_router/go_router.dart';
 import 'package:infant_hearing_app/core/theme/app_colors.dart';
 import 'package:infant_hearing_app/core/theme/app_spacing.dart';
 import 'package:infant_hearing_app/core/theme/app_text_styles.dart';
@@ -10,7 +12,7 @@ import '../controllers/boa_controller.dart';
 import '../state/boa_state.dart';
 import '../../domain/boa_models.dart';
 import '../widgets/boa_response_buttons.dart';
-import '../widgets/waveform_painter.dart';
+import '../widgets/boa_waveform_widget.dart';
 
 class BoaTestScreen extends StatefulWidget {
   const BoaTestScreen({super.key});
@@ -19,30 +21,41 @@ class BoaTestScreen extends StatefulWidget {
   State<BoaTestScreen> createState() => _BoaTestScreenState();
 }
 
-class _BoaTestScreenState extends State<BoaTestScreen> with WidgetsBindingObserver {
-  
+class _BoaTestScreenState extends State<BoaTestScreen>
+    with WidgetsBindingObserver {
+  bool _navigating = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Force landscape lock so camera preview fills screen correctly
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!mounted) return;
-    final controller = context.read<BoaController>();
-    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
-      controller.releaseResources();
-    } else if (state == AppLifecycleState.resumed) {
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) controller.initialize();
-      });
+    final ctrl = context.read<BoaController>();
+    switch (state) {
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+        ctrl.onAppPaused();
+        break;
+      case AppLifecycleState.resumed:
+        ctrl.onAppResumed();
+        break;
+      default:
+        break;
     }
   }
 
@@ -50,65 +63,100 @@ class _BoaTestScreenState extends State<BoaTestScreen> with WidgetsBindingObserv
   Widget build(BuildContext context) {
     final controller = context.watch<BoaController>();
     final state = controller.state;
-    final l10n = AppLocalizations.of(context);
 
-    if (state.isComplete) {
+    // Navigate to result screen when test completes
+    if (state.isComplete && !_navigating) {
+      _navigating = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.of(context).pushReplacementNamed(RouteConstants.boaResult);
+        if (mounted) context.go(RouteConstants.boaResult);
       });
     }
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
+        fit: StackFit.expand,
         children: [
-          // 1. Camera Layer
-          Positioned.fill(child: _buildCameraLayer(controller, state, l10n)),
+          // Layer 1: Camera preview (fills screen)
+          _CameraLayer(controller: controller, state: state),
 
-          // 2. Presence Overlay
-          if (!state.isBabyPresent && !state.manualPresenceOverride && state.isCameraInitialized)
-            Positioned.fill(child: _PresenceOverlay(l10n: l10n, controller: controller)),
+          // Layer 2: Face alignment overlay (shown before test)
+          if (state.isCameraInitialized &&
+              state.phase != BoaTestPhase.complete)
+            const _FaceGuideOverlay(),
 
-          // 3. AI Detection Badge
-          if (state.aiDetection != AiDetectionType.none && (state.phase == BoaTestPhase.playing || state.phase == BoaTestPhase.catchTrial))
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 70,
+          // Layer 3: Baby-not-detected overlay
+          if (!state.isBabyPresent &&
+              !state.manualPresenceOverride &&
+              state.isCameraInitialized &&
+              state.phase == BoaTestPhase.infantDetection)
+            _PresenceOverlay(controller: controller),
+
+          // Layer 4: Brightness warning
+          if (state.isCameraInitialized && state.baselineMotion == 0.0 &&
+              state.phase == BoaTestPhase.infantDetection)
+            const Positioned(
+              top: 120,
               left: AppSpacing.l,
               right: AppSpacing.l,
-              child: _AiDetectionBadge(type: state.aiDetection, l10n: l10n),
+              child: _LightingBadge(),
             ),
 
-          // 4. Catch Trial Indicator
-          if (state.isCatchTrial)
-             Positioned(
-               top: MediaQuery.of(context).padding.top + 120,
-               left: AppSpacing.l,
-               child: Container(
-                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                 decoration: BoxDecoration(color: Colors.purple.withOpacity(0.8), borderRadius: BorderRadius.circular(4)),
-                 child: const Text("CATCH TRIAL (SILENT)", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-               ),
-             ),
+          // Layer 5: AI detection badge (during active trial only)
+          if (state.aiDetection != AiDetectionType.none &&
+              state.aiDetection != AiDetectionType.babyDetected &&
+              state.aiDetection != AiDetectionType.noBabyDetected &&
+              (state.isPlaying || state.phase == BoaTestPhase.awaitingResponse))
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 68,
+              left: AppSpacing.l,
+              right: AppSpacing.l,
+              child: _AiDetectionBadge(
+                type: state.aiDetection,
+                strength: state.responseStrength,
+              ),
+            ),
 
-          // 5. Controls Panel
+          // Layer 6: Catch trial indicator
+          if (state.isCatchTrial)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 68,
+              left: AppSpacing.l,
+              child: _CatchTrialBadge(),
+            ),
+
+          // Layer 7: Controls panel (bottom)
           Align(
             alignment: Alignment.bottomCenter,
-            child: _ControlsPanel(state: state, controller: controller, l10n: l10n),
+            child: _ControlsPanel(
+              state: state,
+              controller: controller,
+            ),
           ),
 
-          // 6. Top Bar
+          // Layer 8: Top bar
           Positioned(
-            top: MediaQuery.of(context).padding.top,
+            top: 0,
             left: 0,
             right: 0,
-            child: _TopBar(l10n: l10n, controller: controller),
+            child: _TopBar(controller: controller),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildCameraLayer(BoaController controller, BoaState state, AppLocalizations l10n) {
+// ── Camera Layer ─────────────────────────────────────────────────────────────
+
+class _CameraLayer extends StatelessWidget {
+  final BoaController controller;
+  final BoaState state;
+
+  const _CameraLayer({required this.controller, required this.state});
+
+  @override
+  Widget build(BuildContext context) {
     if (state.errorMessage != null) {
       return Center(
         child: Padding(
@@ -116,113 +164,205 @@ class _BoaTestScreenState extends State<BoaTestScreen> with WidgetsBindingObserv
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, color: AppColors.error, size: 48),
+              const Icon(Icons.error_outline, color: AppColors.error, size: 56),
               const SizedBox(height: AppSpacing.m),
-              Text(state.errorMessage!, style: AppTextStyles.bodyLarge.copyWith(color: Colors.white), textAlign: TextAlign.center),
+              Text(
+                state.errorMessage!,
+                style: AppTextStyles.bodyLarge.copyWith(color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: AppSpacing.l),
-              ElevatedButton(onPressed: controller.initialize, child: Text(l10n.retry)),
+              ElevatedButton.icon(
+                onPressed: controller.initialize,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
+              ),
             ],
           ),
         ),
       );
     }
-    if (controller.cameraController == null || !controller.cameraController!.value.isInitialized) {
-      return const Center(child: CircularProgressIndicator(color: Colors.white));
+
+    final cam = controller.cameraController;
+    if (cam == null || !cam.value.isInitialized) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: Colors.white),
+            SizedBox(height: 16),
+            Text(
+              'Initializing camera...',
+              style: TextStyle(color: Colors.white70),
+            ),
+          ],
+        ),
+      );
     }
-    
+
+    // Use AspectRatio to prevent camera preview stretching
     return Center(
-      child: CameraPreview(controller.cameraController!),
+      child: AspectRatio(
+        aspectRatio: 1 / cam.value.aspectRatio,
+        child: CameraPreview(cam),
+      ),
     );
   }
 }
 
-class _PresenceOverlay extends StatelessWidget {
-  final AppLocalizations l10n;
-  final BoaController controller;
-  const _PresenceOverlay({required this.l10n, required this.controller});
+// ── Face Guide Overlay ────────────────────────────────────────────────────────
+
+class _FaceGuideOverlay extends StatelessWidget {
+  const _FaceGuideOverlay();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.scrim,
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.face_retouching_off_rounded, color: Colors.white, size: 64),
-            const SizedBox(height: AppSpacing.l),
-            Text(
-              l10n.aiPositionBaby,
-              style: AppTextStyles.h3.copyWith(color: Colors.white),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.s),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 40),
-              child: Text(
-                "Ensure infant's face is clearly visible to begin testing",
-                style: TextStyle(color: Colors.white70),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.l),
-            ElevatedButton(
-              onPressed: () {
-                controller.setManualPresenceOverride(true);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Proceed Anyway (Clinician Override)'),
-            ),
-          ],
+    final size = MediaQuery.of(context).size;
+    final ovalW = size.width * 0.55;
+    final ovalH = ovalW * 1.35;
+    return Positioned(
+      top: size.height * 0.12,
+      left: (size.width - ovalW) / 2,
+      child: Container(
+        width: ovalW,
+        height: ovalH,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(ovalW / 2),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.5),
+            width: 2,
+          ),
         ),
       ),
     );
   }
 }
 
-class _AiDetectionBadge extends StatelessWidget {
-  final AiDetectionType type;
-  final AppLocalizations l10n;
-  const _AiDetectionBadge({required this.type, required this.l10n});
+// ── Baby Presence Overlay ─────────────────────────────────────────────────────
+
+class _PresenceOverlay extends StatelessWidget {
+  final BoaController controller;
+
+  const _PresenceOverlay({required this.controller});
 
   @override
   Widget build(BuildContext context) {
-    String label = '';
-    Color color = AppColors.success;
-    IconData icon = Icons.auto_awesome;
+    return Container(
+      color: Colors.black.withOpacity(0.72),
+      child: Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.95),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusXL),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.face_retouching_off_rounded,
+                  size: 64, color: AppColors.warning),
+              const SizedBox(height: AppSpacing.l),
+              Text(
+                'Position Infant',
+                style: AppTextStyles.h3,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.s),
+              Text(
+                "Hold the device so the infant's face is clearly visible within the oval guide.",
+                style: AppTextStyles.bodyMedium
+                    .copyWith(color: AppColors.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.l),
+              OutlinedButton(
+                onPressed: () => controller.setManualPresenceOverride(true),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textSecondary,
+                  side: const BorderSide(color: AppColors.border),
+                ),
+                child: const Text('Proceed Without Detection'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── AI Detection Badge ─────────────────────────────────────────────────────────
+
+class _AiDetectionBadge extends StatelessWidget {
+  final AiDetectionType type;
+  final ResponseStrength strength;
+
+  const _AiDetectionBadge({required this.type, required this.strength});
+
+  @override
+  Widget build(BuildContext context) {
+    String label;
+    Color color;
+    IconData icon;
 
     switch (type) {
-      case AiDetectionType.eyeBlink: label = l10n.aiEyeBlink; break;
-      case AiDetectionType.headTurn: label = l10n.aiHeadTurn; break;
-      case AiDetectionType.moroReflex: 
-        label = "Startle/Moro Reflex Detected"; 
+      case AiDetectionType.eyeBlink:
+        label = 'Eye Response Detected';
+        color = AppColors.success;
+        icon = Icons.visibility_rounded;
+        break;
+      case AiDetectionType.headTurn:
+        label = 'Head Turn Detected';
+        color = AppColors.primary;
+        icon = Icons.rotate_90_degrees_cw_rounded;
+        break;
+      case AiDetectionType.moroReflex:
+        label = 'Startle/Moro Reflex';
         color = Colors.orange;
         icon = Icons.bolt_rounded;
         break;
       case AiDetectionType.bodyMovement:
-        label = "Body Movement Detected";
+        label = 'Movement Detected';
+        color = AppColors.secondary;
         icon = Icons.accessibility_new_rounded;
         break;
-      default: return const SizedBox.shrink();
+      default:
+        return const SizedBox.shrink();
     }
 
     return Center(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l, vertical: AppSpacing.s),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.l, vertical: AppSpacing.s),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.9), 
+          color: color.withOpacity(0.92),
           borderRadius: BorderRadius.circular(AppSpacing.radiusXL),
-          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))]
+          boxShadow: const [
+            BoxShadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 3))
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, color: Colors.white, size: 18),
             const SizedBox(width: AppSpacing.s),
-            Text(label, style: AppTextStyles.button.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label,
+                    style: AppTextStyles.button
+                        .copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
+                if (strength != ResponseStrength.none)
+                  Text(strength.label,
+                      style: const TextStyle(color: Colors.white70, fontSize: 10)),
+              ],
+            ),
           ],
         ),
       ),
@@ -230,134 +370,371 @@ class _AiDetectionBadge extends StatelessWidget {
   }
 }
 
-class _ControlsPanel extends StatelessWidget {
-  final BoaState state;
-  final BoaController controller;
-  final AppLocalizations l10n;
-  const _ControlsPanel({required this.state, required this.controller, required this.l10n});
+// ── Catch Trial Badge ─────────────────────────────────────────────────────────
 
+class _CatchTrialBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final isPlaying = state.phase == BoaTestPhase.playing || state.phase == BoaTestPhase.catchTrial;
-
     return Container(
-      padding: EdgeInsets.fromLTRB(AppSpacing.l, AppSpacing.l, AppSpacing.l, bottomPadding + AppSpacing.l),
-      decoration: const BoxDecoration(
-        color: Colors.white, 
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(AppSpacing.radiusXL), topRight: Radius.circular(AppSpacing.radiusXL)),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 2)]
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.xs),
+      decoration: BoxDecoration(
+        color: Colors.purple.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusM),
       ),
-      child: Column(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isPlaying) ...[
-            const AudioWaveform(isPlaying: true, color: AppColors.primary),
-            const SizedBox(height: AppSpacing.m),
-          ],
-          Row(
-            children: [
-              Container(padding: const EdgeInsets.all(AppSpacing.s), decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(AppSpacing.radiusM)), child: const Icon(Icons.hearing, color: AppColors.primary, size: 20)),
-              const SizedBox(width: AppSpacing.m),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(state.currentDbLevel.label, style: AppTextStyles.h3), Text(state.currentFrequency.label, style: AppTextStyles.caption)])),
-              if (isPlaying) _PlaybackIndicator(progress: state.playbackProgress),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.l),
-          _GuidanceBanner(state: state, l10n: l10n),
-          const SizedBox(height: AppSpacing.l),
-          if (state.canPlay) 
-            SizedBox(
-              width: double.infinity, 
-              height: 56, 
-              child: ElevatedButton.icon(
-                onPressed: state.isCooldownActive ? null : () => controller.startTrial(), 
-                icon: state.isCooldownActive 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.play_arrow_rounded, size: 28), 
-                label: Text(
-                  state.isCooldownActive ? "Wait (Cooldown)..." : l10n.boaStartTest,
-                  style: AppTextStyles.button.copyWith(fontSize: 18)
-                ), 
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary, 
-                  foregroundColor: Colors.white, 
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusL))
-                )
-              )
-            ),
-          if (state.canRespond) BoaResponseButtons(onResponse: controller.recordResponse),
+        children: const [
+          Icon(Icons.science_rounded, color: Colors.white, size: 12),
+          SizedBox(width: 4),
+          Text('CATCH TRIAL',
+              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 }
 
-class _PlaybackIndicator extends StatelessWidget {
-  final double progress;
-  const _PlaybackIndicator({required this.progress});
+// ── Lighting Badge ────────────────────────────────────────────────────────────
+
+class _LightingBadge extends StatelessWidget {
+  const _LightingBadge();
+
   @override
   Widget build(BuildContext context) {
-    return Container(width: 48, height: 48, padding: const EdgeInsets.all(4), child: Stack(alignment: Alignment.center, children: [CircularProgressIndicator(value: progress, strokeWidth: 4, backgroundColor: AppColors.border, valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary)), Text('${(progress * 100).toInt()}%', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold))]));
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.s),
+      decoration: BoxDecoration(
+        color: Colors.amber.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusM),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.light_mode_rounded, color: Colors.black87, size: 16),
+          SizedBox(width: 6),
+          Text('Move to a well-lit area',
+              style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Controls Panel (bottom sheet) ─────────────────────────────────────────────
+
+class _ControlsPanel extends StatelessWidget {
+  final BoaState state;
+  final BoaController controller;
+
+  const _ControlsPanel({required this.state, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    final isPlaying = state.isPlaying;
+    final isAwaiting = state.phase == BoaTestPhase.awaitingResponse;
+    final isCalibrating = state.phase == BoaTestPhase.calibration;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+          AppSpacing.l, AppSpacing.l, AppSpacing.l, bottomPad + AppSpacing.l),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(AppSpacing.radiusXL),
+          topRight: Radius.circular(AppSpacing.radiusXL),
+        ),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 16,
+              spreadRadius: 2)
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Container(
+            width: 36,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: AppSpacing.m),
+            decoration: BoxDecoration(
+              color: AppColors.border,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          // Waveform (during playback)
+          if (isPlaying) ...[
+            AudioWaveformWidget(
+              isPlaying: true,
+              color: AppColors.primary,
+              progress: state.playbackProgress,
+            ),
+            const SizedBox(height: AppSpacing.m),
+          ],
+
+          // Level + frequency row
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.s),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusM),
+                ),
+                child:
+                    const Icon(Icons.hearing, color: AppColors.primary, size: 22),
+              ),
+              const SizedBox(width: AppSpacing.m),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(state.currentDbLevel.label,
+                        style: AppTextStyles.h3),
+                    Text(state.currentFrequency.label,
+                        style: AppTextStyles.caption),
+                  ],
+                ),
+              ),
+              if (isPlaying) _ProgressRing(progress: state.playbackProgress),
+              if (isAwaiting)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.m, vertical: AppSpacing.xs),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusM),
+                  ),
+                  child: Text(
+                    'OBSERVE',
+                    style: AppTextStyles.caption.copyWith(
+                        color: AppColors.warning, fontWeight: FontWeight.bold),
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: AppSpacing.m),
+
+          // Status / guidance banner
+          _GuidanceBanner(state: state),
+
+          const SizedBox(height: AppSpacing.m),
+
+          // Status override message (habituation, timeout)
+          if (state.statusOverride != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.m),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusM),
+                border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+              ),
+              child: Text(
+                state.statusOverride!,
+                style:
+                    AppTextStyles.bodySmall.copyWith(color: AppColors.warning),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.m),
+          ],
+
+          // Play button
+          if (state.canStartTrial || isCalibrating)
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton.icon(
+                onPressed: (state.isCooldownActive || isCalibrating)
+                    ? null
+                    : () => controller.startTrial(),
+                icon: isCalibrating
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : state.isCooldownActive
+                        ? const Icon(Icons.hourglass_top_rounded, size: 24)
+                        : const Icon(Icons.play_arrow_rounded, size: 28),
+                label: Text(
+                  isCalibrating
+                      ? 'Preparing stimulus...'
+                      : state.isCooldownActive
+                          ? 'Wait...'
+                          : 'Play Sound Stimulus',
+                  style: AppTextStyles.button.copyWith(fontSize: 16),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: AppColors.primary.withOpacity(0.4),
+                  shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusL)),
+                ),
+              ),
+            ),
+
+          // Response buttons (shown during playing AND awaiting)
+          if (state.canRespond) ...[
+            const SizedBox(height: AppSpacing.m),
+            BoaResponseButtons(onResponse: controller.recordResponse),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ProgressRing extends StatelessWidget {
+  final double progress;
+  const _ProgressRing({required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CircularProgressIndicator(
+            value: progress,
+            strokeWidth: 3.5,
+            backgroundColor: AppColors.border,
+            valueColor:
+                const AlwaysStoppedAnimation<Color>(AppColors.primary),
+          ),
+          Text(
+            '${(progress * 3).toStringAsFixed(1)}s',
+            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
   }
 }
 
 class _GuidanceBanner extends StatelessWidget {
   final BoaState state;
-  final AppLocalizations l10n;
-  const _GuidanceBanner({required this.state, required this.l10n});
+  const _GuidanceBanner({required this.state});
+
   @override
   Widget build(BuildContext context) {
-    String msg = ''; Color color = AppColors.secondary; IconData icon = Icons.info_outline;
+    String msg;
+    Color color;
+    IconData icon;
+
     switch (state.phase) {
-      case BoaTestPhase.idle: 
+      case BoaTestPhase.idle:
       case BoaTestPhase.infantDetection:
-        msg = l10n.preCheckInfantAlert; icon = Icons.emoji_emotions_outlined; break;
-      case BoaTestPhase.playing: 
+        if (!state.isBabyPresent && !state.manualPresenceOverride) {
+          msg = 'Position infant in front of camera';
+          color = AppColors.warning;
+          icon = Icons.face_rounded;
+        } else {
+          msg = 'Ready. Tap "Play Sound Stimulus" to begin.';
+          color = AppColors.secondary;
+          icon = Icons.emoji_emotions_outlined;
+        }
+        break;
+      case BoaTestPhase.calibration:
+        msg = 'Preparing stimulus — keep infant still...';
+        color = AppColors.primary;
+        icon = Icons.timer_outlined;
+        break;
+      case BoaTestPhase.playing:
       case BoaTestPhase.catchTrial:
-        msg = l10n.boaPlaying; color = AppColors.primary; icon = Icons.volume_up_rounded; break;
-      case BoaTestPhase.awaitingResponse: msg = l10n.boaResponse; color = AppColors.warning; icon = Icons.visibility_outlined; break;
-      default: msg = l10n.done;
+        msg = 'Sound playing — observe infant carefully';
+        color = AppColors.primary;
+        icon = Icons.volume_up_rounded;
+        break;
+      case BoaTestPhase.awaitingResponse:
+        msg = 'Did the infant respond? Tap a button below.';
+        color = AppColors.warning;
+        icon = Icons.visibility_outlined;
+        break;
+      default:
+        msg = 'Test complete.';
+        color = AppColors.success;
+        icon = Icons.check_circle_outline;
     }
-    return Container(padding: const EdgeInsets.all(AppSpacing.m), decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(AppSpacing.radiusM)), child: Row(children: [Icon(icon, color: color, size: 20), const SizedBox(width: AppSpacing.m), Expanded(child: Text(msg, style: AppTextStyles.bodyMedium.copyWith(color: color, fontWeight: FontWeight.bold)))]));
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.m, vertical: AppSpacing.s),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusM),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: AppSpacing.m),
+          Expanded(
+            child: Text(
+              msg,
+              style: AppTextStyles.bodyMedium
+                  .copyWith(color: color, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
+// ── Top Bar ────────────────────────────────────────────────────────────────────
+
 class _TopBar extends StatelessWidget {
-  final AppLocalizations l10n;
   final BoaController controller;
-  const _TopBar({required this.l10n, required this.controller});
+  const _TopBar({required this.controller});
+
   @override
   Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s, vertical: AppSpacing.s),
+      padding: EdgeInsets.fromLTRB(0, topPad, AppSpacing.s, AppSpacing.s),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Colors.black.withOpacity(0.8), Colors.transparent],
+          colors: [Colors.black.withOpacity(0.75), Colors.transparent],
         ),
       ),
       child: Row(
         children: [
+          // FIX: Use context.pop() (GoRouter) not Navigator.pop()
           IconButton(
             icon: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              controller.releaseResources().then((_) {
+                if (context.mounted) context.pop();
+              });
+            },
           ),
-          const SizedBox(width: AppSpacing.s),
           Expanded(
             child: Text(
-              l10n.boaTest,
+              'BOA Test',
               style: AppTextStyles.h3.copyWith(color: Colors.white),
             ),
           ),
           IconButton(
             icon: const Icon(Icons.flip_camera_ios_rounded, color: Colors.white),
             onPressed: controller.toggleCamera,
+            tooltip: 'Flip camera',
           ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
             onPressed: () => _confirmReset(context),
+            tooltip: 'Restart test',
           ),
         ],
       ),
@@ -368,16 +745,18 @@ class _TopBar extends StatelessWidget {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(l10n.retry),
-        content: const Text('Restart current test? All progress will be cleared.'),
+        title: const Text('Restart Test?'),
+        content: const Text('All progress will be cleared.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           TextButton(
             onPressed: () {
-              controller.reset();
               Navigator.pop(context);
+              controller.reset();
             },
-            child: Text(l10n.ok),
+            child: const Text('Restart'),
           ),
         ],
       ),

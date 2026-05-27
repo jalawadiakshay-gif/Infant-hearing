@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../shared/widgets/app_text_field.dart';
+import 'package:infant_hearing_app/core/theme/app_colors.dart';
+import 'package:infant_hearing_app/shared/widgets/app_text_field.dart';
 
 class BatchInfantCardWidget extends StatelessWidget {
   final int index;

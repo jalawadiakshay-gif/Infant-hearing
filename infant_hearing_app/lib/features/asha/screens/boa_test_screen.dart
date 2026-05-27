@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/boa_result_model.dart';
 import '../providers/asha_provider.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../shared/widgets/app_button.dart';
+import 'package:infant_hearing_app/core/theme/app_colors.dart';
+import 'package:infant_hearing_app/shared/widgets/app_button.dart';
 
 class BoaTestScreen extends StatefulWidget {
-  const BoaTestScreen({super.key});
+  final Map<String, dynamic>? arguments;
+  const BoaTestScreen({super.key, this.arguments});
 
   @override
   State<BoaTestScreen> createState() => _BoaTestScreenState();
@@ -61,9 +62,7 @@ class _BoaTestScreenState extends State<BoaTestScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    final infant = args?['infant'] as Map<String, dynamic>? ?? {};
+    final infant = widget.arguments?['infant'] as Map<String, dynamic>? ?? {};
     final name = infant['name'] as String? ?? 'Infant';
 
     return Consumer<AshaProvider>(

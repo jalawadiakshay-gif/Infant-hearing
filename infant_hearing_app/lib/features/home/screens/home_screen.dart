@@ -4,6 +4,7 @@ import 'package:infant_hearing_app/core/theme/app_colors.dart';
 import 'package:infant_hearing_app/core/theme/app_spacing.dart';
 import 'package:infant_hearing_app/core/theme/app_text_styles.dart';
 import 'package:infant_hearing_app/core/constants/route_constants.dart';
+import 'package:go_router/go_router.dart';
 import 'package:infant_hearing_app/core/localization/app_localizations.dart';
 import 'package:infant_hearing_app/features/baby/providers/baby_provider.dart';
 import 'package:infant_hearing_app/features/parent/providers/parent_provider.dart';
@@ -116,28 +117,28 @@ class HomeScreen extends StatelessWidget {
                       label: 'Screening',
                       subtitle: 'Start Phase 1',
                       color: AppColors.primary,
-                      onTap: () => Navigator.pushNamed(context, RouteConstants.questionnaire),
+                      onTap: () => context.push(RouteConstants.questionnaire),
                     ),
                     QuickActionTile(
                       icon: Icons.analytics_rounded,
                       label: 'History',
                       subtitle: 'Past Records',
                       color: AppColors.secondary,
-                      onTap: () => Navigator.pushNamed(context, RouteConstants.history),
+                      onTap: () => context.push(RouteConstants.history),
                     ),
                     QuickActionTile(
                       icon: Icons.psychology_rounded,
                       label: 'AI Assistant',
                       subtitle: 'Chat Support',
                       color: AppColors.accent,
-                      onTap: () => Navigator.pushNamed(context, RouteConstants.chatbot),
+                      onTap: () => context.push(RouteConstants.chatbot),
                     ),
                     QuickActionTile(
                       icon: Icons.menu_book_rounded,
                       label: 'Insights',
                       subtitle: 'Resources',
                       color: AppColors.warning,
-                      onTap: () => Navigator.pushNamed(context, RouteConstants.medicalInsights),
+                      onTap: () => context.push(RouteConstants.medicalInsights),
                     ),
                   ],
                 ),
@@ -181,7 +182,7 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildProfileAvatar(BuildContext context, parent) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, RouteConstants.profile),
+      onTap: () => context.push(RouteConstants.profile),
       child: Container(
         padding: const EdgeInsets.all(2),
         decoration: BoxDecoration(
@@ -275,7 +276,7 @@ class HomeScreen extends StatelessWidget {
           Text(l10n.welcomeDescription, style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withValues(alpha: 0.9))),
           const SizedBox(height: AppSpacing.xl),
           ElevatedButton(
-            onPressed: () => Navigator.pushNamed(context, RouteConstants.babyProfile),
+            onPressed: () => context.push(RouteConstants.babyProfile),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: AppColors.primary,

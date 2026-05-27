@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:infant_hearing_app/core/localization/app_localizations.dart';
 import 'package:infant_hearing_app/core/theme/app_colors.dart';
 import 'package:infant_hearing_app/core/theme/app_spacing.dart';
 import 'package:infant_hearing_app/core/theme/app_text_styles.dart';
 import 'package:infant_hearing_app/features/auth/providers/auth_provider.dart';
 import 'package:infant_hearing_app/core/providers/app_provider.dart';
+import 'package:infant_hearing_app/core/constants/route_constants.dart';
 import 'package:infant_hearing_app/shared/widgets/app_button.dart';
 import 'package:infant_hearing_app/shared/widgets/app_text_field.dart';
 import 'package:infant_hearing_app/shared/widgets/app_logo.dart';
@@ -91,6 +93,7 @@ class _PhoneLoginBodyState extends State<_PhoneLoginBody> {
       if (success) {
         // Refresh app data (Parent/Baby) after successful login
         await appProvider.initializeApp();
+        // Router redirect will handle destination
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -224,6 +227,17 @@ class _PhoneLoginBodyState extends State<_PhoneLoginBody> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textPrimary,
                     side: BorderSide(color: AppColors.border, width: 1.5),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextButton.icon(
+                  onPressed: () {
+                    context.push(RouteConstants.roleSelection);
+                  },
+                  icon: const Icon(Icons.swap_horiz_rounded),
+                  label: const Text('SWITCH TO ASHA WORKER MODE'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
                   ),
                 ),
                 const SizedBox(height: 40),

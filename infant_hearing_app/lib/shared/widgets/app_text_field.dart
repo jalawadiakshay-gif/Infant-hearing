@@ -14,6 +14,7 @@ class AppTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final List<TextInputFormatter>? inputFormatters;
   final int? maxLines;
+  final int? maxLength;
   final bool readOnly;
   final VoidCallback? onTap;
   final void Function(String)? onChanged;
@@ -34,6 +35,7 @@ class AppTextField extends StatelessWidget {
     this.validator,
     this.inputFormatters,
     this.maxLines = 1,
+    this.maxLength,
     this.readOnly = false,
     this.onTap,
     this.onChanged,
@@ -52,6 +54,7 @@ class AppTextField extends StatelessWidget {
       validator: validator,
       inputFormatters: inputFormatters,
       maxLines: maxLines,
+      maxLength: maxLength,
       readOnly: readOnly,
       onTap: onTap,
       onChanged: onChanged,
@@ -63,6 +66,7 @@ class AppTextField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
+        counterText: "",
         prefixIcon: prefixIcon != null
             ? Icon(prefixIcon, size: 20, color: AppColors.textHint)
             : null,

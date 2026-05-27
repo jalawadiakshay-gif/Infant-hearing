@@ -1,131 +1,127 @@
-import 'dart:math' as math;
+import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:infant_hearing_app/core/theme/app_colors.dart';
-import 'package:infant_hearing_app/core/theme/app_spacing.dart';
-import '../../domain/boa_models.dart';
-import '../state/boa_state.dart';
 
-/// Animated waveform / sound indicator shown during BOA playback.
-/// Uses a CustomPainter to draw sine-wave bars that animate when active.
-class BoaWaveformWidget extends StatefulWidget {
-  final BoaState state;
+/// Animated audio waveform widget shown during BOA stimulus playback.
+/// Renders animated sine bars to provide clear visual feedback to caregiver.
+class AudioWaveformWidget extends StatefulWidget {
+  final bool isPlaying;
+  final Color color;
+  final double progress;
+  final int barCount;
 
-  const BoaWaveformWidget({super.key, required this.state});
+  const AudioWaveformWidget({
+    super.key,
+    required this.isPlaying,
+    required this.color,
+    this.progress = 0.0,
+    this.barCount = 20,
+  });
 
   @override
-  State<BoaWaveformWidget> createState() => _BoaWaveformWidgetState();
+  State<AudioWaveformWidget> createState() => _AudioWaveformWidgetState();
 }
 
-class _BoaWaveformWidgetState extends State<BoaWaveformWidget>
+class _AudioWaveformWidgetState extends State<AudioWaveformWidget>
     with SingleTickerProviderStateMixin {
-  late AnimationController _anim;
+  late AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _anim = AnimationController(
+    _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
-    )..repeat();
+      duration: const Duration(milliseconds: 1200),
+    );
+    if (widget.isPlaying) _controller.repeat();
+  }
+
+  @override
+  void didUpdateWidget(AudioWaveformWidget old) {
+    super.didUpdateWidget(old);
+    if (widget.isPlaying && !_controller.isAnimating) {
+      _controller.repeat();
+    } else if (!widget.isPlaying && _controller.isAnimating) {
+      _controller.stop();
+    }
   }
 
   @override
   void dispose() {
-    _anim.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isPlaying = widget.state.phase == BoaTestPhase.playing || widget.state.phase == BoaTestPhase.catchTrial;
-    final isAwaiting = widget.state.phase == BoaTestPhase.awaitingResponse;
-
-    return Container(
-      height: 120,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusL),
-        border: Border.all(
-          color: isPlaying
-              ? AppColors.primary.withOpacity(0.4)
-              : AppColors.border,
-        ),
-      ),
-      child: isPlaying
-          ? AnimatedBuilder(
-              animation: _anim,
-              builder: (_, __) => CustomPaint(
-                painter: _WaveformPainter(
-                  progress: _anim.value,
-                  color: AppColors.primary,
-                ),
-              ),
-            )
-          : Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    isAwaiting
-                        ? Icons.remove_red_eye_outlined
-                        : Icons.graphic_eq_rounded,
-                    size: 36,
-                    color: isAwaiting
-                        ? AppColors.secondary
-                        : AppColors.primary.withOpacity(0.3),
-                  ),
-                  const SizedBox(height: AppSpacing.s),
-                  Text(
-                    isAwaiting
-                        ? 'Observe infant response'
-                        : 'Ready to play ${widget.state.currentDbLevel.label}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isAwaiting
-                          ? AppColors.secondary
-                          : AppColors.textHint,
-                    ),
-                  ),
-                ],
-              ),
+    return SizedBox(
+      height: 40,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return CustomPaint(
+            painter: _WaveformPainter(
+              animValue: _controller.value,
+              color: widget.color,
+              barCount: widget.barCount,
+              progress: widget.progress,
             ),
+            size: const Size(double.infinity, 40),
+          );
+        },
+      ),
     );
   }
 }
 
 class _WaveformPainter extends CustomPainter {
-  final double progress;
+  final double animValue;
   final Color color;
+  final int barCount;
+  final double progress;
+  final Random _random = Random(42); // Fixed seed for consistent bar heights
 
-  _WaveformPainter({required this.progress, required this.color});
+  _WaveformPainter({
+    required this.animValue,
+    required this.color,
+    required this.barCount,
+    required this.progress,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round;
-
-    const barCount = 24;
-    final barWidth = size.width / (barCount * 2);
+    final barWidth = size.width / (barCount * 1.8);
+    final spacing = size.width / barCount;
+    final maxH = size.height * 0.85;
+    final minH = size.height * 0.12;
     final centerY = size.height / 2;
 
     for (int i = 0; i < barCount; i++) {
-      final x = (i * 2 + 1) * barWidth;
-      // Each bar gets a phase offset to create wave motion
-      final phase = (i / barCount) * 2 * math.pi;
-      final height = (math.sin(progress * 2 * math.pi + phase).abs() * 0.6 + 0.2) *
-          (size.height * 0.4);
+      final x = i * spacing + spacing / 2;
+
+      // Each bar has a unique phase offset for organic look
+      final phase = (i / barCount) * 2 * pi;
+      final wave = sin(animValue * 2 * pi + phase);
+      final baseH = minH + (maxH - minH) * ((i % 5) / 4.0) * 0.6;
+      final barH = (baseH + wave * baseH * 0.4).clamp(minH, maxH);
+
+      // Bars to the left of progress marker are solid; right are faded
+      final isElapsed = (i / barCount) < progress;
+      final paint = Paint()
+        ..color = isElapsed
+            ? color.withOpacity(0.9)
+            : color.withOpacity(0.25)
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = barWidth;
 
       canvas.drawLine(
-        Offset(x, centerY - height),
-        Offset(x, centerY + height),
+        Offset(x, centerY - barH / 2),
+        Offset(x, centerY + barH / 2),
         paint,
       );
     }
   }
 
   @override
-  bool shouldRepaint(_WaveformPainter old) => old.progress != progress;
+  bool shouldRepaint(_WaveformPainter old) =>
+      old.animValue != animValue || old.progress != progress;
 }

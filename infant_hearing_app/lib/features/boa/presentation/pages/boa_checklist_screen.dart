@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:infant_hearing_app/core/theme/app_colors.dart';
 import 'package:infant_hearing_app/core/theme/app_spacing.dart';
 import 'package:infant_hearing_app/core/theme/app_text_styles.dart';
@@ -22,7 +23,7 @@ class BoaChecklistScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(l10n.boaPreChecklist),
         leading: BackButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => context.pop(),
         ),
       ),
       body: SafeArea(
@@ -205,7 +206,7 @@ class _ChecklistFooter extends StatelessWidget {
             ? () {
                 // Initialize controller (camera, etc) before navigating
                 context.read<BoaController>().initialize();
-                Navigator.of(context).pushNamed(RouteConstants.boaTest);
+                context.push(RouteConstants.boaTest);
               }
             : null,
       ),

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/providers/language_provider.dart';
-import '../../../../core/services/tts_service.dart';
-import '../../../../shared/widgets/app_card.dart';
+import 'package:infant_hearing_app/core/theme/app_colors.dart';
+import 'package:infant_hearing_app/core/theme/app_spacing.dart';
+import 'package:infant_hearing_app/core/theme/app_text_styles.dart';
+import 'package:infant_hearing_app/core/providers/language_provider.dart';
+import 'package:infant_hearing_app/core/services/tts_service.dart';
+import 'package:infant_hearing_app/shared/widgets/app_card.dart';
 import '../models/questionnaire_models.dart';
 
 class QuestionCard extends StatefulWidget {
@@ -27,14 +27,6 @@ class QuestionCard extends StatefulWidget {
 }
 
 class _QuestionCardState extends State<QuestionCard> {
-  Future<void> _onSpeakTap(String text) async {
-    final tts = context.read<TtsService>();
-    if (tts.isSpeaking) {
-      await tts.stop();
-    } else {
-      await tts.speak(text);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

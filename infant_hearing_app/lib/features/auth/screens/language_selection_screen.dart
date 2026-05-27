@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:infant_hearing_app/core/theme/app_colors.dart';
 import 'package:infant_hearing_app/core/theme/app_spacing.dart';
 import 'package:infant_hearing_app/core/theme/app_text_styles.dart';
 import 'package:infant_hearing_app/core/constants/app_language.dart';
+import 'package:infant_hearing_app/core/constants/route_constants.dart';
 import 'package:infant_hearing_app/core/localization/app_localizations.dart';
 import 'package:infant_hearing_app/core/providers/language_provider.dart';
 import 'package:infant_hearing_app/core/services/tts_service.dart';
@@ -37,8 +39,9 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
 
     if (widget.fromSettings) {
       Navigator.of(context).pop();
+    } else {
+      context.go('/');
     }
-    // No else block needed as _RootNavigator handles it based on isFirstRun state
   }
 
   @override

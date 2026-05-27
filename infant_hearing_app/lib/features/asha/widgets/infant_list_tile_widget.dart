@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_colors.dart';
+import 'package:infant_hearing_app/core/theme/app_colors.dart';
 
 class InfantListTileWidget extends StatelessWidget {
   final Map<String, dynamic> infant;

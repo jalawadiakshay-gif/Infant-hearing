@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/asha_model.dart';
-import '../../../core/constants/app_colors.dart';
+import 'package:infant_hearing_app/core/theme/app_colors.dart';
 
 class AshaIdBadgeWidget extends StatelessWidget {
   final AshaModel asha;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -64,7 +65,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (success) {
       context.showSnackBar('Account created! Please sign in.');
-      context.pushReplacementNamed(RouteConstants.login);
+      context.go(RouteConstants.phoneLogin);
     } else {
       context.showSnackBar(
         provider.errorMessage ?? 'Registration failed.',

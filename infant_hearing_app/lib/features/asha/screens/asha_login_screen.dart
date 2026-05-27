@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/asha_provider.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/route_constants.dart';
-import '../../../shared/widgets/app_button.dart';
-import '../../../shared/widgets/app_text_field.dart';
+import 'package:infant_hearing_app/core/theme/app_colors.dart';
+import 'package:infant_hearing_app/core/constants/route_constants.dart';
+import 'package:infant_hearing_app/shared/widgets/app_button.dart';
+import 'package:infant_hearing_app/shared/widgets/app_text_field.dart';
 
 class AshaLoginScreen extends StatefulWidget {
   const AshaLoginScreen({super.key});
@@ -38,7 +39,7 @@ class _AshaLoginScreenState extends State<AshaLoginScreen> {
     if (!mounted) return;
 
     if (success) {
-      Navigator.pushReplacementNamed(context, RouteConstants.ashaDashboard);
+      context.go(RouteConstants.ashaDashboard);
     }
   }
 
@@ -159,6 +160,27 @@ class _AshaLoginScreenState extends State<AshaLoginScreen> {
                       onPressed: _handleLogin,
                     );
                   },
+                ),
+
+                const SizedBox(height: 24),
+
+                // Switch to Parent Mode
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () {
+                      context.go(RouteConstants.roleSelection);
+                    },
+                    icon: const Icon(Icons.swap_horiz_rounded,
+                        color: Color(0xFF2563EB)),
+                    label: const Text(
+                      'SWITCH TO PARENT MODE',
+                      style: TextStyle(
+                        color: Color(0xFF2563EB),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
                 ),
 
                 const SizedBox(height: 24),

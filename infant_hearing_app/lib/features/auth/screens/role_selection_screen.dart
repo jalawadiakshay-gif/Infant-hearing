@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:infant_hearing_app/core/constants/route_constants.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
@@ -36,7 +37,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 description: 'Screen your baby and track their hearing health.',
                 icon: Icons.family_restroom,
                 onTap: () {
-                  Navigator.pushNamed(context, RouteConstants.simpleParentProfile);
+                  context.go(RouteConstants.phoneLogin);
                 },
               ),
               const SizedBox(height: 20),
@@ -45,11 +46,8 @@ class RoleSelectionScreen extends StatelessWidget {
                 description: 'Support parents in screening and follow-ups.',
                 icon: Icons.support_agent,
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('ASHA Worker module coming soon!')),
-                  );
+                  context.go(RouteConstants.ashaLogin);
                 },
-                isDisabled: true,
               ),
             ],
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -48,7 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (success) {
       context.showSnackBar('Welcome back!');
-      context.pushReplacementNamed(RouteConstants.parentProfile);
+      context.go(RouteConstants.simpleParentProfile);
     } else {
       context.showSnackBar(
         provider.errorMessage ?? 'Login failed. Please try again.',
@@ -142,7 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 AppTextButton(
                   prefix: "${AppStrings.dontHaveAccount} ",
                   label: AppStrings.signUp,
-                  onPressed: () => context.pushNamed(RouteConstants.register),
+                  onPressed: () => context.push(RouteConstants.register),
                 ),
 
                 const SizedBox(height: AppSpacing.xxxl),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:infant_hearing_app/core/constants/route_constants.dart';
 import 'package:infant_hearing_app/features/auth/providers/auth_provider.dart';
 
@@ -24,11 +25,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     if (_formKey.currentState?.validate() ?? false) {
       final success = await context.read<AuthProvider>().verifyOtp(_otpController.text);
       if (success && mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          RouteConstants.roleSelection,
-          (route) => false,
-        );
+        context.go('/');
       } else if (mounted) {
         final error = context.read<AuthProvider>().errorMessage ?? 'Invalid OTP';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));

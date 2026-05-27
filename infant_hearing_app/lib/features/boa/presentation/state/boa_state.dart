@@ -17,16 +17,23 @@ class BoaState {
   final bool isRecording;
   final bool isAnalyzing;
   final bool isCooldownActive;
-  final double aiConfidence; 
-  final AiDetectionType aiDetection; 
-  
-  // ── Production Grade BOA additions ────────────────────────────────────────
+  final double aiConfidence;
+  final AiDetectionType aiDetection;
+  final ResponseStrength responseStrength;
+
+  // ── Production-grade additions ─────────────────────────────────────────────
   final bool isBabyPresent;
   final double presenceConfidence;
   final bool manualPresenceOverride;
   final bool isCatchTrial;
   final int habituationCount;
   final double baselineMotion;
+
+  /// Timestamp when stimulus playback began — used for temporal response window.
+  final DateTime? stimulusStartTime;
+
+  /// Current dB level text for display. Can override with temporary messages.
+  final String? statusOverride;
 
   const BoaState({
     this.phase = BoaTestPhase.idle,
@@ -37,18 +44,21 @@ class BoaState {
     this.outcome,
     this.errorMessage,
     this.isCameraInitialized = false,
-    this.lensDirection = CameraLensDirection.front,
+    this.lensDirection = CameraLensDirection.back,
     this.isRecording = false,
     this.isAnalyzing = false,
     this.isCooldownActive = false,
     this.aiConfidence = 0.0,
     this.aiDetection = AiDetectionType.none,
+    this.responseStrength = ResponseStrength.none,
     this.isBabyPresent = false,
     this.presenceConfidence = 0.0,
     this.manualPresenceOverride = false,
     this.isCatchTrial = false,
     this.habituationCount = 0,
     this.baselineMotion = 0.0,
+    this.stimulusStartTime,
+    this.statusOverride,
   });
 
   BoaState copyWith({
@@ -59,6 +69,7 @@ class BoaState {
     double? playbackProgress,
     BoaOutcome? outcome,
     String? errorMessage,
+    bool clearError = false,
     bool? isCameraInitialized,
     CameraLensDirection? lensDirection,
     bool? isRecording,
@@ -66,12 +77,17 @@ class BoaState {
     bool? isCooldownActive,
     double? aiConfidence,
     AiDetectionType? aiDetection,
+    ResponseStrength? responseStrength,
     bool? isBabyPresent,
     double? presenceConfidence,
     bool? manualPresenceOverride,
     bool? isCatchTrial,
     int? habituationCount,
     double? baselineMotion,
+    DateTime? stimulusStartTime,
+    bool clearStimulusTime = false,
+    String? statusOverride,
+    bool clearStatusOverride = false,
   }) {
     return BoaState(
       phase: phase ?? this.phase,
@@ -80,7 +96,7 @@ class BoaState {
       trials: trials ?? this.trials,
       playbackProgress: playbackProgress ?? this.playbackProgress,
       outcome: outcome ?? this.outcome,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       isCameraInitialized: isCameraInitialized ?? this.isCameraInitialized,
       lensDirection: lensDirection ?? this.lensDirection,
       isRecording: isRecording ?? this.isRecording,
@@ -88,20 +104,45 @@ class BoaState {
       isCooldownActive: isCooldownActive ?? this.isCooldownActive,
       aiConfidence: aiConfidence ?? this.aiConfidence,
       aiDetection: aiDetection ?? this.aiDetection,
+      responseStrength: responseStrength ?? this.responseStrength,
       isBabyPresent: isBabyPresent ?? this.isBabyPresent,
       presenceConfidence: presenceConfidence ?? this.presenceConfidence,
       manualPresenceOverride: manualPresenceOverride ?? this.manualPresenceOverride,
       isCatchTrial: isCatchTrial ?? this.isCatchTrial,
       habituationCount: habituationCount ?? this.habituationCount,
       baselineMotion: baselineMotion ?? this.baselineMotion,
+      stimulusStartTime: clearStimulusTime ? null : (stimulusStartTime ?? this.stimulusStartTime),
+      statusOverride: clearStatusOverride ? null : (statusOverride ?? this.statusOverride),
     );
   }
 
-  bool get canRespond => phase == BoaTestPhase.awaitingResponse || phase == BoaTestPhase.playing;
-  bool get canPlay => (phase == BoaTestPhase.idle || phase == BoaTestPhase.infantDetection) 
-      && isCameraInitialized 
-      && !isRecording 
-      && !isCooldownActive
-      && (isBabyPresent || manualPresenceOverride);
+  // ── Computed convenience getters ───────────────────────────────────────────
+
+  bool get canRespond =>
+      phase == BoaTestPhase.awaitingResponse || phase == BoaTestPhase.playing;
+
+  bool get canStartTrial =>
+      (phase == BoaTestPhase.idle || phase == BoaTestPhase.infantDetection) &&
+      isCameraInitialized &&
+      !isRecording &&
+      !isCooldownActive &&
+      (isBabyPresent || manualPresenceOverride);
+
   bool get isComplete => phase == BoaTestPhase.complete;
+
+  bool get isPlaying =>
+      phase == BoaTestPhase.playing || phase == BoaTestPhase.catchTrial;
+
+  /// True if we are within the clinical response observation window.
+  bool get inResponseWindow {
+    if (stimulusStartTime == null) return false;
+    final elapsed = DateTime.now().difference(stimulusStartTime!).inMilliseconds;
+    // JNMC: response expected within 300ms – 3000ms of stimulus onset
+    return elapsed >= 100 && elapsed <= 3000;
+  }
+
+  int get totalClinicalTrials => trials.where((t) => !t.isCatchTrial).length;
+  int get catchTrialCount => trials.where((t) => t.isCatchTrial).length;
+  int get falsePositiveCount =>
+      trials.where((t) => t.isCatchTrial && t.response == BoaResponse.responseDetected).length;
 }

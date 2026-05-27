@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -180,11 +181,7 @@ class _BabyProfileScreenState extends State<BabyProfileScreen> {
               AppPrimaryButton(
                 onPressed: () {
                   Navigator.of(ctx).pop();
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    RouteConstants.mainLayout,
-                    (route) => false,
-                  );
+                  context.go(RouteConstants.mainLayout);
                 },
                 label: l10n.continueButton,
               ),
@@ -202,13 +199,7 @@ class _BabyProfileScreenState extends State<BabyProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.welcomeSubtitle),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () => context.read<AuthProvider>().logout(),
-          ),
-        ],
+        title: const Text('Child Profile'),
       ),
       body: SafeArea(
         child: Column(

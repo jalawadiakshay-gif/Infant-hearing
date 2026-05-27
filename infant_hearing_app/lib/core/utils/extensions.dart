@@ -12,10 +12,6 @@ extension ContextExtensions on BuildContext {
     );
   }
 
-  void pushNamed(String route) => Navigator.pushNamed(this, route);
-  void pushReplacementNamed(String route) => Navigator.pushReplacementNamed(this, route);
-  void pop() => Navigator.pop(this);
-
   double get screenWidth => MediaQuery.of(this).size.width;
   double get screenHeight => MediaQuery.of(this).size.height;
   ThemeData get theme => Theme.of(this);

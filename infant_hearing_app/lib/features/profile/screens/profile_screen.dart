@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:infant_hearing_app/core/theme/app_colors.dart';
 import 'package:infant_hearing_app/core/theme/app_spacing.dart';
 import 'package:infant_hearing_app/core/theme/app_text_styles.dart';
@@ -96,7 +97,7 @@ class ProfileScreen extends StatelessWidget {
           children: [
             Text('Child Profiles', style: AppTextStyles.subheading1.copyWith(fontWeight: FontWeight.bold)),
             TextButton.icon(
-              onPressed: () => Navigator.pushNamed(context, RouteConstants.babyProfile),
+              onPressed: () => context.push(RouteConstants.babyProfile),
               icon: const Icon(Icons.add, size: 18),
               label: const Text('Add New'),
             ),
@@ -129,7 +130,7 @@ class ProfileScreen extends StatelessWidget {
         title: Text(baby.name, style: AppTextStyles.subheading2.copyWith(fontWeight: FontWeight.bold)),
         subtitle: Text('Age: ${baby.ageMonths} months', style: AppTextStyles.caption),
         trailing: const Icon(Icons.chevron_right_rounded),
-        onTap: () => Navigator.pushNamed(context, RouteConstants.childDetail),
+        onTap: () => context.push(RouteConstants.childDetail),
       ),
     );
   }
@@ -158,7 +159,7 @@ class ProfileScreen extends StatelessWidget {
                 onTap: () async {
                   await auth.logout();
                   if (context.mounted) {
-                    Navigator.of(context).pushNamedAndRemoveUntil(RouteConstants.phoneLogin, (route) => false);
+                    context.go(RouteConstants.roleSelection);
                   }
                 }
               ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 /// BOA Domain Models
-/// Represents the clinical protocol for Behavioral Observation Audiometry.
 /// Based on JNMC-specified adaptive dB protocol (70 → 45/90 dB HL).
 
 // ── Stimulus frequency options ────────────────────────────────────────────────
@@ -17,15 +16,6 @@ enum BoaFrequency {
       case BoaFrequency.freq3kHz:       return '3 kHz';
       case BoaFrequency.broadbandNoise: return 'Broadband Noise';
       case BoaFrequency.warbleTone:     return 'Warble Tone';
-    }
-  }
-
-  String get assetPath {
-    switch (this) {
-      case BoaFrequency.freq1kHz:       return 'assets/audio/tone_1khz.mp3';
-      case BoaFrequency.freq3kHz:       return 'assets/audio/tone_3khz.mp3';
-      case BoaFrequency.broadbandNoise: return 'assets/audio/broadband_noise.mp3';
-      case BoaFrequency.warbleTone:     return 'assets/audio/warble_tone.mp3';
     }
   }
 }
@@ -56,6 +46,15 @@ enum BoaDbLevel {
         return 'Elevated stimulus. No response at this level is a strong indicator of hearing impairment.';
     }
   }
+
+  /// Asset path for the pre-calibrated WAV file for this level.
+  String get assetPath {
+    switch (this) {
+      case BoaDbLevel.db45: return 'assets/audio/boa_45db.wav';
+      case BoaDbLevel.db70: return 'assets/audio/boa_70db.wav';
+      case BoaDbLevel.db90: return 'assets/audio/boa_90db.wav';
+    }
+  }
 }
 
 // ── Caregiver-observed response ───────────────────────────────────────────────
@@ -77,12 +76,12 @@ enum BoaResponse {
 enum BoaTestPhase {
   idle,
   checklist,
-  calibration,
+  calibration,   // Random pre-stimulus delay (1–3s)
   infantDetection,
   baselineLearning,
-  playing,
-  awaitingResponse,
-  catchTrial,
+  playing,       // Stimulus actively playing
+  awaitingResponse, // Stimulus done, observing
+  catchTrial,    // Silent trial
   complete;
 }
 
@@ -97,6 +96,23 @@ enum AiDetectionType {
   bodyMovement,
   suckingChange,
   positionBaby;
+}
+
+// ── Response confidence classification ───────────────────────────────────────
+enum ResponseStrength {
+  none,
+  weak,
+  probable,
+  strong;
+
+  String get label {
+    switch (this) {
+      case ResponseStrength.none:     return 'No Reliable Response';
+      case ResponseStrength.weak:     return 'Weak Response';
+      case ResponseStrength.probable: return 'Probable Response';
+      case ResponseStrength.strong:   return 'Strong Response';
+    }
+  }
 }
 
 // ── Final BOA outcome ─────────────────────────────────────────────────────────
@@ -149,6 +165,8 @@ class BoaTrial {
   final BoaResponse response;
   final DateTime timestamp;
   final bool isCatchTrial;
+  final double aiConfidence;
+  final AiDetectionType aiDetection;
 
   const BoaTrial({
     required this.dbLevel,
@@ -156,6 +174,8 @@ class BoaTrial {
     required this.response,
     required this.timestamp,
     this.isCatchTrial = false,
+    this.aiConfidence = 0.0,
+    this.aiDetection = AiDetectionType.none,
   });
 }
 
