@@ -7,6 +7,7 @@ import 'package:infant_hearing_app/core/theme/app_text_styles.dart';
 import 'package:infant_hearing_app/core/constants/route_constants.dart';
 import 'package:infant_hearing_app/core/localization/app_localizations.dart';
 import 'package:infant_hearing_app/shared/widgets/app_button.dart';
+import 'package:infant_hearing_app/shared/widgets/language_switcher.dart';
 import '../controllers/boa_checklist_controller.dart';
 import '../controllers/boa_controller.dart';
 
@@ -25,6 +26,9 @@ class BoaChecklistScreen extends StatelessWidget {
         leading: BackButton(
           onPressed: () => context.pop(),
         ),
+        actions: const [
+          LanguagePopupButton(),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -92,7 +96,7 @@ class _ChecklistProgress extends StatelessWidget {
                 style: AppTextStyles.subheading2,
               ),
               if (isComplete)
-                Icon(Icons.check_circle, color: AppColors.success, size: 20),
+                const Icon(Icons.check_circle, color: AppColors.success, size: 20),
             ],
           ),
           const SizedBox(height: AppSpacing.s),
@@ -153,10 +157,10 @@ class _ChecklistTile extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: AppSpacing.m),
         padding: const EdgeInsets.all(AppSpacing.l),
         decoration: BoxDecoration(
-          color: item.isChecked ? AppColors.success.withOpacity(0.06) : AppColors.surface,
+          color: item.isChecked ? AppColors.success.withValues(alpha: 0.06) : AppColors.surface,
           borderRadius: BorderRadius.circular(AppSpacing.radiusL),
           border: Border.all(
-            color: item.isChecked ? AppColors.success.withOpacity(0.4) : AppColors.border,
+            color: item.isChecked ? AppColors.success.withValues(alpha: 0.4) : AppColors.border,
             width: item.isChecked ? 2 : 1,
           ),
         ),
@@ -166,7 +170,7 @@ class _ChecklistTile extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: item.isChecked ? AppColors.success.withOpacity(0.1) : AppColors.border.withOpacity(0.1),
+                color: item.isChecked ? AppColors.success.withValues(alpha: 0.1) : AppColors.border.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(

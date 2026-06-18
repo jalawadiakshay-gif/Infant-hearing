@@ -81,9 +81,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             right: 0,
             child: FadeTransition(
               opacity: _fadeAnimation,
-              child: Column(
+              child: const Column(
                 children: [
-                  const SizedBox(
+                  SizedBox(
                     width: 40,
                     child: LinearProgressIndicator(
                       backgroundColor: AppColors.border,
@@ -91,7 +91,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       minHeight: 2,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   Text(
                     'MEDICAL RESEARCH VERSION 1.0',
                     style: TextStyle(

@@ -58,7 +58,7 @@ class _PhoneLoginBodyState extends State<_PhoneLoginBody> {
     super.dispose();
   }
 
-  Future<void> _handleSendOtp() async {
+  Future<void> _handleSendOtp(AppLocalizations l10n) async {
     if (_formKey.currentState?.validate() ?? false) {
       final authProvider = context.read<AuthProvider>();
       final success = await authProvider.sendOtp(_phoneController.text);
@@ -68,12 +68,12 @@ class _PhoneLoginBodyState extends State<_PhoneLoginBody> {
       if (success) {
         setState(() => _otpSent = true);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('OTP sent successfully (Mock: 123456)')),
+          SnackBar(content: Text(l10n.otpSentSuccess)),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(authProvider.errorMessage ?? 'Failed to send OTP'),
+            content: Text(authProvider.errorMessage ?? l10n.failedSendOtp),
             backgroundColor: AppColors.error,
           ),
         );
@@ -104,7 +104,7 @@ class _PhoneLoginBodyState extends State<_PhoneLoginBody> {
       }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a 6-digit OTP')),
+        SnackBar(content: Text(l10n.enterSixDigitOtp)),
       );
     }
   }
@@ -142,7 +142,7 @@ class _PhoneLoginBodyState extends State<_PhoneLoginBody> {
                 const SizedBox(height: 60),
                 
                 Text(
-                  _otpSent ? 'ENTER VERIFICATION CODE' : 'LOGIN TO PROCEED',
+                  _otpSent ? l10n.enterVerificationCode.toUpperCase() : l10n.loginToProceed.toUpperCase(),
                   style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w800, color: AppColors.textSecondary),
                   textAlign: TextAlign.left,
                 ),
@@ -151,7 +151,7 @@ class _PhoneLoginBodyState extends State<_PhoneLoginBody> {
                 AppTextField(
                   controller: _phoneController,
                   label: l10n.parentPhone,
-                  hint: 'Enter 10 digit number',
+                  hint: l10n.enterPhoneHint,
                   prefixIcon: Icons.phone_android_rounded,
                   keyboardType: TextInputType.phone,
                   readOnly: _otpSent,
@@ -161,8 +161,8 @@ class _PhoneLoginBodyState extends State<_PhoneLoginBody> {
                   ],
                   validator: (value) {
                     if (value == null || value.isEmpty) return l10n.fieldRequired;
-                    if (value.length != 10) return 'Exactly 10 digits required';
-                    if (!RegExp(r'^[0-9]+$').hasMatch(value)) return 'Numbers only';
+                    if (value.length != 10) return l10n.exactDigitsRequired;
+                    if (!RegExp(r'^[0-9]+$').hasMatch(value)) return l10n.numbersOnly;
                     return null;
                   },
                 ),
@@ -171,7 +171,7 @@ class _PhoneLoginBodyState extends State<_PhoneLoginBody> {
 
                 if (!_otpSent)
                   AppPrimaryButton(
-                    onPressed: _isPhoneValid ? _handleSendOtp : null,
+                    onPressed: _isPhoneValid ? () => _handleSendOtp(l10n) : null,
                     isLoading: isLoading,
                     label: l10n.continueButton,
                   ),
@@ -179,8 +179,8 @@ class _PhoneLoginBodyState extends State<_PhoneLoginBody> {
                 if (_otpSent) ...[
                   AppTextField(
                     controller: _otpController,
-                    label: 'Verification Code',
-                    hint: 'Enter 6-digit OTP',
+                    label: l10n.verificationCode,
+                    hint: l10n.enterOtpHint,
                     keyboardType: TextInputType.number,
                     prefixIcon: Icons.verified_user_rounded,
                     inputFormatters: [
@@ -207,7 +207,7 @@ class _PhoneLoginBodyState extends State<_PhoneLoginBody> {
                     const Expanded(child: Divider()),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
-                      child: Text('OR', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w900)),
+                      child: Text(l10n.or.toUpperCase(), style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w900)),
                     ),
                     const Expanded(child: Divider()),
                   ],
@@ -217,16 +217,19 @@ class _PhoneLoginBodyState extends State<_PhoneLoginBody> {
                   onPressed: isLoading 
                       ? null 
                       : () async {
-                          final success = await context.read<AuthProvider>().signInWithGoogle();
+                          final authProvider = context.read<AuthProvider>();
+                          final success = await authProvider.signInWithGoogle();
                           if (success && mounted) {
-                            await context.read<AppProvider>().initializeApp();
+                            if (context.mounted) {
+                              await context.read<AppProvider>().initializeApp();
+                            }
                           }
                         },
                   icon: const Icon(Icons.login_rounded, size: 20),
-                  label: const Text('CONTINUE WITH GOOGLE'),
+                  label: Text(l10n.continueWithGoogle.toUpperCase()),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textPrimary,
-                    side: BorderSide(color: AppColors.border, width: 1.5),
+                    side: const BorderSide(color: AppColors.border, width: 1.5),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -235,14 +238,14 @@ class _PhoneLoginBodyState extends State<_PhoneLoginBody> {
                     context.push(RouteConstants.roleSelection);
                   },
                   icon: const Icon(Icons.swap_horiz_rounded),
-                  label: const Text('SWITCH TO ASHA WORKER MODE'),
+                  label: Text(l10n.switchToAsha.toUpperCase()),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.primary,
                   ),
                 ),
                 const SizedBox(height: 40),
                 Text(
-                  'RESEARCH-GRADE CLINICAL SCREENING TOOL',
+                  l10n.clinicalTool.toUpperCase(),
                   style: AppTextStyles.caption.copyWith(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.textHint),
                   textAlign: TextAlign.center,
                 ),

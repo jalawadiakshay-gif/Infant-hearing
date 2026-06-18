@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "App (Dev)",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define=ENV=dev",
+        "--dart-define=API_URL=http://baalshravya-api.local:5000/api"
+      ]
+    },
+    {
+      "name": "App (Staging)",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define=ENV=staging"
+      ]
+    },
+    {
+      "name": "App (Prod)",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define=ENV=prod"
+      ]
+    }
+  ]
+}

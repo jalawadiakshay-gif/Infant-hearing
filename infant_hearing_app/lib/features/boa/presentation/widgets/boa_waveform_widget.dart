@@ -78,7 +78,6 @@ class _WaveformPainter extends CustomPainter {
   final Color color;
   final int barCount;
   final double progress;
-  final Random _random = Random(42); // Fixed seed for consistent bar heights
 
   _WaveformPainter({
     required this.animValue,
@@ -108,8 +107,8 @@ class _WaveformPainter extends CustomPainter {
       final isElapsed = (i / barCount) < progress;
       final paint = Paint()
         ..color = isElapsed
-            ? color.withOpacity(0.9)
-            : color.withOpacity(0.25)
+            ? color.withValues(alpha: 0.9)
+            : color.withValues(alpha: 0.25)
         ..strokeCap = StrokeCap.round
         ..strokeWidth = barWidth;
 

@@ -1,0 +1,35 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // BOA review clips: authenticated users only
+    match /boa-review-clips/{fileName} {
+      // Any authenticated user can read (clinician review)
+      allow read: if request.auth != null;
+
+      // Only authenticated users can upload
+      // Max 500 KB, must be video
+      allow write: if request.auth != null &&
+        request.resource.size < 500 * 1024 &&
+        request.resource.contentType.matches('video/.*');
+
+      // Deletion only by admin (or lifecycle function)
+      allow delete: if false;
+    }
+    // Screenings media (video and pdf)
+    match /screenings/{screeningId}/{fileName} {
+      allow read: if request.auth != null;
+      // Allow video and pdf uploads from authenticated users
+      // Increased size limit to 50MB for video and PDFs
+      allow write: if request.auth != null &&
+        request.resource.size < 50 * 1024 * 1024 &&
+        (request.resource.contentType.matches('video/.*') || request.resource.contentType.matches('application/pdf'));
+      allow delete: if false;
+    }
+
+    // Block everything else
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

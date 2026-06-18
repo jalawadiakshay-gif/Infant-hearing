@@ -1,37 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'core/network/api_client.dart';
+import 'firebase_options.dart';
 import 'core/providers/language_provider.dart';
 import 'core/providers/app_provider.dart';
 import 'core/services/tts_service.dart';
 import 'core/services/notification_service.dart';
-import 'core/constants/env.dart';
 import 'features/auth/providers/auth_provider.dart';
-import 'features/auth/services/auth_api_service.dart';
 import 'features/baby/providers/baby_provider.dart';
-import 'features/baby/services/baby_api_service.dart';
 import 'features/chatbot/providers/chatbot_provider.dart';
 import 'features/chatbot/services/speech_service.dart';
 import 'features/parent/providers/parent_provider.dart';
-import 'features/parent/services/parent_api_service.dart';
 import 'features/questionnaire/providers/questionnaire_provider.dart';
-import 'features/questionnaire/services/questionnaire_api_service.dart';
-import 'features/boa/services/boa_api_service.dart';
 import 'features/asha/providers/asha_provider.dart';
-import 'shared/repositories/auth_repository.dart';
-import 'shared/repositories/baby_repository.dart';
-import 'shared/repositories/parent_repository.dart';
-import 'shared/repositories/questionnaire_repository.dart';
-import 'shared/repositories/boa_repository.dart';
+import 'features/boa/presentation/controllers/boa_controller.dart';
 import 'shared/services/local_storage_service.dart';
+import 'data/services/v2/app_firestore_service.dart';
 import 'app.dart';
 
 void main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
 
-    // ── 0. Infrastructure & Core Services ──────────────────────────────────────
+    // ── 0. Firebase Initialization ─────────────────────────────────────────
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    // Enable Firestore offline persistence
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+
+    // ── 1. Infrastructure & Core Services ──────────────────────────────────
     await NotificationService.instance.initialize();
 
     final storage = LocalStorageService();
@@ -55,33 +59,19 @@ void main() async {
       debugPrint('Main: Speech initialization error: $e');
     }
 
-    // ── 1. Network Layer ──────────────────────────────────────────────────────
-    final apiClient = ApiClient(baseUrl: Env.baseUrl, storage: storage);
+    // ── 2. Firebase Services (V2 Architecture) ────────────────────────────
+    final appFirestoreService = AppFirestoreService();
 
-    // ── 2. API Services ───────────────────────────────────────────────────────
-    final authApiService = AuthApiService(apiClient);
-    final babyApiService = BabyApiService(apiClient);
-    final parentApiService = ParentApiService(apiClient);
-    final questionnaireApiService = QuestionnaireApiService(apiClient);
-    final boaApiService = BoaApiService(apiClient);
+    // ── 3. Providers ──────────────────────────────────────────────────────
+    final authProvider = AuthProvider(firestoreService: appFirestoreService);
+    final parentProvider = ParentProvider(firestoreService: appFirestoreService);
+    final babyProvider = BabyProvider(firestoreService: appFirestoreService);
 
-    // ── 3. Repositories ───────────────────────────────────────────────────────
-    final authRepository = AuthRepository(
-      authApiService: authApiService,
-      storage: storage,
+    // ASHA provider
+    final ashaProvider = AshaProvider(
+      firestoreService: appFirestoreService,
     );
-    final babyRepository = BabyRepository(babyApiService: babyApiService);
-    final parentRepository = ParentRepository(parentApiService: parentApiService);
-    final questionnaireRepository = QuestionnaireRepository(
-      questionnaireApiService: questionnaireApiService,
-    );
-    final boaRepository = BoaRepository(boaApiService: boaApiService);
 
-    // ── 4. Providers ──────────────────────────────────────────────────────────
-    final authProvider = AuthProvider(authRepository: authRepository);
-    final parentProvider = ParentProvider(parentRepository: parentRepository);
-    final babyProvider = BabyProvider(babyRepository: babyRepository);
-    
     final appProvider = AppProvider(
       authProvider: authProvider,
       parentProvider: parentProvider,
@@ -104,7 +94,7 @@ void main() async {
           ChangeNotifierProvider.value(value: speech),
           ChangeNotifierProvider.value(value: storage),
           ChangeNotifierProvider.value(value: appProvider),
-          ChangeNotifierProvider(create: (_) => AshaProvider()),
+          ChangeNotifierProvider.value(value: ashaProvider),
 
           ChangeNotifierProvider.value(value: authProvider),
           ChangeNotifierProvider.value(value: parentProvider),
@@ -112,11 +102,16 @@ void main() async {
 
           ChangeNotifierProvider(
             create: (ctx) => QuestionnaireProvider(
-              questionnaireRepository: questionnaireRepository,
+              firestoreService: appFirestoreService,
               storage: ctx.read<LocalStorageService>(),
             ),
           ),
-          Provider<BoaRepository>.value(value: boaRepository),
+          ChangeNotifierProvider(
+            create: (ctx) => BoaController(
+              firestoreService: appFirestoreService,
+              ttsService: tts,
+            )..initialize(),
+          ),
           ChangeNotifierProvider(create: (_) => ChatbotProvider()),
         ],
         child: const InfantHearingApp(),

@@ -2,43 +2,43 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../constants/route_constants.dart';
-import '../providers/app_provider.dart';
-import '../providers/language_provider.dart';
-import '../../features/auth/providers/auth_provider.dart';
-import '../../features/asha/providers/asha_provider.dart';
-import '../../features/parent/providers/parent_provider.dart';
-import '../../features/baby/providers/baby_provider.dart';
+import 'package:infant_hearing_app/core/constants/route_constants.dart';
+import 'package:infant_hearing_app/core/providers/app_provider.dart';
+import 'package:infant_hearing_app/core/providers/language_provider.dart';
+import 'package:infant_hearing_app/features/auth/providers/auth_provider.dart';
+import 'package:infant_hearing_app/features/asha/providers/asha_provider.dart';
+import 'package:infant_hearing_app/features/parent/providers/parent_provider.dart';
+import 'package:infant_hearing_app/features/baby/providers/baby_provider.dart';
 
 // Screens
-import '../../features/auth/screens/phone_login_screen.dart';
-import '../../features/auth/screens/register_screen.dart';
-import '../../features/auth/screens/otp_verification_screen.dart';
-import '../../features/auth/screens/role_selection_screen.dart';
-import '../../features/auth/screens/language_selection_screen.dart';
-import '../../features/home/screens/main_layout_screen.dart';
-import '../../features/asha/screens/asha_dashboard_screen.dart';
-import '../../features/asha/screens/asha_login_screen.dart';
-import '../../features/asha/screens/asha_village_screen.dart';
-import '../../features/asha/screens/asha_infant_detail_screen.dart';
-import '../../features/asha/screens/batch_registration_screen.dart';
-import '../../features/asha/screens/boa_test_screen.dart' as asha_boa;
-import '../../features/boa/presentation/pages/boa_intro_screen.dart';
-import '../../features/boa/presentation/pages/boa_wizard_screen.dart';
-import '../../features/boa/presentation/pages/boa_checklist_screen.dart';
-import '../../features/boa/presentation/pages/boa_test_screen.dart';
-import '../../features/boa/presentation/pages/boa_result_screen.dart';
-import '../../features/chatbot/screens/chatbot_screen.dart';
-import '../../features/profile/screens/profile_screen.dart';
-import '../../features/settings/screens/settings_screen.dart';
-import '../../features/history/screens/history_screen.dart';
-import '../../features/home/screens/medical_insights_screen.dart';
-import '../../features/questionnaire/screens/questionnaire_screen.dart';
-import '../../features/questionnaire/screens/questionnaire_result_screen.dart';
-import '../../features/baby/screens/child_detail_screen.dart';
-import '../../features/baby/screens/baby_profile_screen.dart';
-import '../../features/parent/screens/parent_profile_screen.dart';
-import '../../features/parent/screens/simple_parent_profile_screen.dart';
+import 'package:infant_hearing_app/features/auth/screens/phone_login_screen.dart';
+import 'package:infant_hearing_app/features/auth/screens/register_screen.dart';
+import 'package:infant_hearing_app/features/auth/screens/otp_verification_screen.dart';
+import 'package:infant_hearing_app/features/auth/screens/role_selection_screen.dart';
+import 'package:infant_hearing_app/features/auth/screens/language_selection_screen.dart';
+import 'package:infant_hearing_app/features/home/screens/main_layout_screen.dart';
+import 'package:infant_hearing_app/features/asha/screens/asha_dashboard_screen.dart';
+import 'package:infant_hearing_app/features/asha/screens/asha_login_screen.dart';
+import 'package:infant_hearing_app/features/asha/screens/asha_village_screen.dart';
+import 'package:infant_hearing_app/features/asha/screens/asha_infant_detail_screen.dart';
+import 'package:infant_hearing_app/features/asha/screens/batch_registration_screen.dart';
+import 'package:infant_hearing_app/features/boa/presentation/pages/boa_intro_screen.dart';
+import 'package:infant_hearing_app/features/boa/presentation/pages/boa_wizard_screen.dart';
+import 'package:infant_hearing_app/features/boa/presentation/pages/boa_checklist_screen.dart';
+import 'package:infant_hearing_app/features/boa/presentation/pages/boa_test_screen.dart';
+import 'package:infant_hearing_app/features/boa/presentation/pages/boa_result_screen.dart';
+import 'package:infant_hearing_app/features/chatbot/screens/chatbot_screen.dart';
+import 'package:infant_hearing_app/features/profile/screens/profile_screen.dart';
+import 'package:infant_hearing_app/features/settings/screens/settings_screen.dart';
+import 'package:infant_hearing_app/features/history/screens/history_screen.dart';
+import 'package:infant_hearing_app/features/home/screens/medical_insights_screen.dart';
+import 'package:infant_hearing_app/features/questionnaire/screens/questionnaire_screen.dart';
+import 'package:infant_hearing_app/features/questionnaire/screens/questionnaire_result_screen.dart';
+import 'package:infant_hearing_app/features/baby/screens/child_detail_screen.dart';
+import 'package:infant_hearing_app/features/baby/screens/baby_profile_screen.dart';
+import 'package:infant_hearing_app/features/parent/screens/parent_profile_screen.dart';
+import 'package:infant_hearing_app/features/parent/screens/simple_parent_profile_screen.dart';
+import 'package:infant_hearing_app/data/models/v2/child.dart';
 
 class AppRouter {
   static GoRouter router(Listenable refreshListenable) => GoRouter(
@@ -62,7 +62,7 @@ class AppRouter {
       }
 
       // Special case for ASHA login flow
-      if (asha.isLoggedIn) {
+      if (asha.status == AshaStatus.success && asha.asha != null) {
         if (state.matchedLocation == RouteConstants.ashaLogin || 
             state.matchedLocation == RouteConstants.login ||
             state.matchedLocation == '/') {
@@ -159,7 +159,7 @@ class AppRouter {
         path: RouteConstants.ashaInfantDetail,
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
-          final infant = extra?['infant'] as Map<String, dynamic>? ?? {};
+          final infant = extra?['infant'] as Child;
           return AshaInfantDetailScreen(infant: infant);
         },
       ),
@@ -169,10 +169,7 @@ class AppRouter {
       ),
       GoRoute(
         path: RouteConstants.ashaBoaTest,
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
-          return asha_boa.BoaTestScreen(arguments: extra);
-        },
+        builder: (context, state) => const BoaTestScreen(),
       ),
       GoRoute(
         path: RouteConstants.boaIntro,

@@ -28,12 +28,20 @@ class BoaState {
   final bool isCatchTrial;
   final int habituationCount;
   final double baselineMotion;
+  final double noiseLevel;       // Env noise floor (0-100 scale)
+  final double testReliability;  // Calculated index (0-1.0)
 
   /// Timestamp when stimulus playback began — used for temporal response window.
   final DateTime? stimulusStartTime;
 
   /// Current dB level text for display. Can override with temporary messages.
   final String? statusOverride;
+
+  // ── Enhanced CV fields ─────────────────────────────────────────────────────
+  final double poseConfidence;
+  final List<AiDetectionType> detectedBehaviors;
+  final String? cvExplanation;
+  final int? responseLatencyMs;
 
   const BoaState({
     this.phase = BoaTestPhase.idle,
@@ -57,8 +65,14 @@ class BoaState {
     this.isCatchTrial = false,
     this.habituationCount = 0,
     this.baselineMotion = 0.0,
+    this.noiseLevel = 0.0,
+    this.testReliability = 1.0,
     this.stimulusStartTime,
     this.statusOverride,
+    this.poseConfidence = 0.0,
+    this.detectedBehaviors = const [],
+    this.cvExplanation,
+    this.responseLatencyMs,
   });
 
   BoaState copyWith({
@@ -84,10 +98,17 @@ class BoaState {
     bool? isCatchTrial,
     int? habituationCount,
     double? baselineMotion,
+    double? noiseLevel,
+    double? testReliability,
     DateTime? stimulusStartTime,
     bool clearStimulusTime = false,
     String? statusOverride,
     bool clearStatusOverride = false,
+    double? poseConfidence,
+    List<AiDetectionType>? detectedBehaviors,
+    String? cvExplanation,
+    bool clearCvExplanation = false,
+    int? responseLatencyMs,
   }) {
     return BoaState(
       phase: phase ?? this.phase,
@@ -111,8 +132,14 @@ class BoaState {
       isCatchTrial: isCatchTrial ?? this.isCatchTrial,
       habituationCount: habituationCount ?? this.habituationCount,
       baselineMotion: baselineMotion ?? this.baselineMotion,
+      noiseLevel: noiseLevel ?? this.noiseLevel,
+      testReliability: testReliability ?? this.testReliability,
       stimulusStartTime: clearStimulusTime ? null : (stimulusStartTime ?? this.stimulusStartTime),
       statusOverride: clearStatusOverride ? null : (statusOverride ?? this.statusOverride),
+      poseConfidence: poseConfidence ?? this.poseConfidence,
+      detectedBehaviors: detectedBehaviors ?? this.detectedBehaviors,
+      cvExplanation: clearCvExplanation ? null : (cvExplanation ?? this.cvExplanation),
+      responseLatencyMs: responseLatencyMs ?? this.responseLatencyMs,
     );
   }
 

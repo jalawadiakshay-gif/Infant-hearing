@@ -1,0 +1,12 @@
+{
+  "name": "baalshravya-migration",
+  "version": "1.0.0",
+  "description": "Firestore data migration script for Baalshravya v2 architecture",
+  "main": "migrate.js",
+  "scripts": {
+    "start": "node migrate.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}

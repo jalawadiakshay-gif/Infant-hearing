@@ -34,9 +34,9 @@ class BoaDbLevelCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        color: _levelColor.withOpacity(0.06),
+        color: _levelColor.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(AppSpacing.radiusXL),
-        border: Border.all(color: _levelColor.withOpacity(0.4), width: 1.5),
+        border: Border.all(color: _levelColor.withValues(alpha: 0.4), width: 1.5),
       ),
       child: Column(
         children: [

@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:infant_hearing_app/core/constants/route_constants.dart';
-import 'package:infant_hearing_app/features/parent/models/parent_model.dart';
+import 'package:infant_hearing_app/core/localization/app_localizations.dart';
+import 'package:infant_hearing_app/data/models/v2/app_user.dart';
 import 'package:infant_hearing_app/features/parent/providers/parent_provider.dart';
-import 'package:infant_hearing_app/features/auth/providers/auth_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// A lightweight parent-profile form shown immediately after role selection.
 /// FIX 7: Now calls ParentProvider.saveParent() so hasParentData becomes true
@@ -21,37 +22,27 @@ class _SimpleParentProfileScreenState
     extends State<SimpleParentProfileScreen> {
   final _formKey              = GlobalKey<FormState>();
   final _parentNameController = TextEditingController();
-  final _cityController       = TextEditingController();
-  final _emergencyController  = TextEditingController();
-
-  String _relationship = 'Mother';
+  final _districtController   = TextEditingController();
 
   @override
   void dispose() {
     _parentNameController.dispose();
-    _cityController.dispose();
-    _emergencyController.dispose();
+    _districtController.dispose();
     super.dispose();
   }
 
   Future<void> _onSave() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final auth         = context.read<AuthProvider>();
+    final auth         = FirebaseAuth.instance;
     final provider     = context.read<ParentProvider>();
 
-    final parent = ParentModel(
-      id:               DateTime.now().millisecondsSinceEpoch.toString(),
+    final parent = AppUser(
+      uid:              auth.currentUser?.uid ?? '',
+      role:             'parent',
       name:             _parentNameController.text.trim(),
-      phone:            auth.phoneNumber ?? '',
-      email:            null,
-      address:          _cityController.text.trim(),
-      city:             _cityController.text.trim(),
-      state:            '',
-      emergencyContact: _emergencyController.text.trim(),
-      relationship:     _relationship,
-      preferredHospital: null,
-      isVerified:       false,
+      phone:            auth.currentUser?.phoneNumber ?? '',
+      district:         _districtController.text.trim(),
     );
 
     provider.setDeclaration(true);
@@ -68,10 +59,11 @@ class _SimpleParentProfileScreenState
   Widget build(BuildContext context) {
     final theme    = Theme.of(context);
     final isSaving = context.watch<ParentProvider>().isSaving;
+    final l10n     = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Your Profile'),
+        title: Text(l10n.yourProfile),
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -82,51 +74,32 @@ class _SimpleParentProfileScreenState
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Complete your profile to get started',
+                l10n.completeProfileGuardian,
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: Colors.grey.shade600),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
 
-              _buildLabel('Your Name *'),
+              _buildLabel('${l10n.parentName} *'),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _parentNameController,
                 textCapitalization: TextCapitalization.words,
-                decoration: _inputDecoration('Full name', Icons.person),
+                decoration: _inputDecoration(l10n.parentName, Icons.person),
                 validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                    (v == null || v.trim().isEmpty) ? l10n.fieldRequired : null,
               ),
 
               const SizedBox(height: 20),
-              _buildLabel('Relationship to Baby'),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: _relationship,
-                decoration: _inputDecoration('Relationship', Icons.family_restroom),
-                items: ['Mother', 'Father', 'Guardian']
-                    .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                    .toList(),
-                onChanged: (v) => setState(() => _relationship = v!),
-              ),
-
-              const SizedBox(height: 20),
-              _buildLabel('City / Village'),
+              _buildLabel('District'),
               const SizedBox(height: 8),
               TextFormField(
-                controller: _cityController,
-                decoration: _inputDecoration('City or village', Icons.location_city),
+                controller: _districtController,
+                decoration: _inputDecoration('District', Icons.location_city),
               ),
 
-              const SizedBox(height: 20),
-              _buildLabel('Emergency Contact Number'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _emergencyController,
-                keyboardType: TextInputType.phone,
-                decoration: _inputDecoration('10-digit mobile number', Icons.contact_phone),
-              ),
+
 
               const SizedBox(height: 48),
 
@@ -143,9 +116,9 @@ class _SimpleParentProfileScreenState
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text(
-                        'Save & Continue',
-                        style: TextStyle(
+                    : Text(
+                        l10n.saveAndNext,
+                        style: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),

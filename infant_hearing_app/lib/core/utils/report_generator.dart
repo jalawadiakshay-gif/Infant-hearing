@@ -1,11 +1,11 @@
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
-import '../../features/asha/models/boa_result_model.dart';
+import '../../data/models/v2/screening.dart';
+import '../../data/models/v2/child.dart';
 
 class ReportGenerator {
-  static Future<Uint8List> generateBoaReport(BoaResultModel result) async {
+  static Future<Uint8List> generateBoaReport(Child child, Screening screening) async {
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -21,28 +21,23 @@ class ReportGenerator {
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     pw.Text('BAALSHRAVYA — Clinical Report', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 18)),
-                    pw.Text('Date: ${result.testedAt.toString().split(' ')[0]}'),
+                    pw.Text('Date: ${screening.date.toString().split(' ')[0]}'),
                   ],
                 ),
               ),
               pw.SizedBox(height: 20),
-              pw.Text('Infant Name: ${result.infantName}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-              pw.Text('ASHA ID: ${result.ashaId}'),
+              pw.Text('Infant Name: ${child.name}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+              pw.Text('Conducted By: ${screening.conductedBy}'),
               pw.SizedBox(height: 20),
               pw.Text('BOA Screening Results', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
               pw.Divider(),
               pw.SizedBox(height: 10),
-              _buildResultRow('Left Ear', result.leftEar.label),
-              _buildResultRow('Right Ear', result.rightEar.label),
+              _buildResultRow('Outcome', screening.boaOutcome ?? 'Unknown'),
               pw.SizedBox(height: 20),
-              if (result.notes != null) ...[
-                pw.Text('Clinical Notes:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                pw.Text(result.notes!),
-              ],
               pw.Spacer(),
               pw.Divider(),
               pw.Text('This is a computer-generated screening report. Further diagnostic evaluation (OAE/ABR) is recommended if responses are absent.',
-                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+                  style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
             ],
           );
         },

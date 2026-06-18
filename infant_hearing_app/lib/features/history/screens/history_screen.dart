@@ -7,23 +7,27 @@ import 'package:infant_hearing_app/core/theme/app_colors.dart';
 import 'package:infant_hearing_app/core/theme/app_spacing.dart';
 import '../../asha/providers/asha_provider.dart';
 import '../../../core/constants/route_constants.dart';
+import 'package:infant_hearing_app/core/localization/app_localizations.dart';
+
+import 'package:infant_hearing_app/data/models/v2/child.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Clinical History', style: AppTextStyles.h3),
+        title: Text(l10n.clinicalHistory, style: AppTextStyles.h3),
       ),
       body: Consumer<AshaProvider>(
         builder: (context, provider, _) {
-          final infants = provider.allInfants.where((i) => i['status'] == 'Completed').toList();
+          final infants = provider.children;
 
           if (infants.isEmpty) {
-            return _buildEmptyState(context);
+            return _buildEmptyState(context, l10n);
           }
 
           return ListView.builder(
@@ -31,7 +35,7 @@ class HistoryScreen extends StatelessWidget {
             itemCount: infants.length,
             itemBuilder: (context, index) {
               final infant = infants[index];
-              return _HistoryCard(infant: infant);
+              return _HistoryCard(infant: infant, l10n: l10n);
             },
           );
         },
@@ -39,7 +43,7 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState(BuildContext context, AppLocalizations l10n) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xxxl),
@@ -49,16 +53,16 @@ class HistoryScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(AppSpacing.xxl),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.05),
+                color: AppColors.primary.withValues(alpha: 0.05),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.history_rounded, size: 64, color: AppColors.primary),
             ),
             const SizedBox(height: AppSpacing.xl),
-            Text('No Records Found', style: AppTextStyles.h3),
+            Text(l10n.noRecordsFound, style: AppTextStyles.h3),
             const SizedBox(height: AppSpacing.s),
             Text(
-              'Completed screening records and BOA results will appear here.',
+              l10n.completedRecordsAppear,
               style: AppTextStyles.bodyMedium,
               textAlign: TextAlign.center,
             ),
@@ -70,17 +74,17 @@ class HistoryScreen extends StatelessWidget {
 }
 
 class _HistoryCard extends StatelessWidget {
-  final Map<String, dynamic> infant;
-  const _HistoryCard({required this.infant});
+  final Child infant;
+  final AppLocalizations l10n;
+  const _HistoryCard({required this.infant, required this.l10n});
 
   @override
   Widget build(BuildContext context) {
-    final name = (infant['name'] as String?) ?? 'Unknown';
+    final name = infant.name.isNotEmpty ? infant.name : l10n.unknownLabel;
     final initial = name.isNotEmpty ? name[0] : '?';
-    final registeredAtRaw = infant['registeredAt'] as String?;
-    final screenedDate = registeredAtRaw != null
-        ? DateFormat('dd MMM yyyy').format(DateTime.parse(registeredAtRaw))
-        : 'Date unknown';
+    final screenedDate = infant.createdAt != null
+        ? DateFormat('dd MMM yyyy').format(infant.createdAt!)
+        : l10n.dateUnknown;
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.m),
@@ -88,7 +92,7 @@ class _HistoryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusXL),
-        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
         boxShadow: AppColors.softShadow,
       ),
       child: Column(
@@ -96,7 +100,7 @@ class _HistoryCard extends StatelessWidget {
           Row(
             children: [
               CircleAvatar(
-                backgroundColor: AppColors.primary.withOpacity(0.1),
+                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                 child: Text(initial, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(width: AppSpacing.m),
@@ -105,7 +109,7 @@ class _HistoryCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(name, style: AppTextStyles.subheading1),
-                    Text('Screened on $screenedDate',
+                    Text(l10n.screenedOn(screenedDate),
                         style: AppTextStyles.caption),
                   ],
                 ),
@@ -113,10 +117,10 @@ class _HistoryCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
+                  color: AppColors.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Text('PASS', style: TextStyle(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.bold)),
+                child: Text(l10n.passLabel, style: const TextStyle(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -124,14 +128,14 @@ class _HistoryCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _ResultIcon(label: 'Questionnaire', icon: Icons.assignment_turned_in_rounded, color: Colors.blue),
-              _ResultIcon(label: 'BOA Test', icon: Icons.hearing_rounded, color: Colors.purple),
+              _ResultIcon(label: l10n.questionnaire, icon: Icons.assignment_turned_in_rounded, color: Colors.blue),
+              _ResultIcon(label: l10n.boaTest, icon: Icons.hearing_rounded, color: Colors.purple),
               TextButton(
                 onPressed: () => context.push(
                   RouteConstants.ashaInfantDetail,
                   extra: {'infant': infant},
                 ),
-                child: const Text('View Report'),
+                child: Text(l10n.viewReport),
               ),
             ],
           ),

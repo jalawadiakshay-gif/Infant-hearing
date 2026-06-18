@@ -23,20 +23,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
 
   Future<void> _handleLogout() async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusL)),
-        title: Text('Logout', style: AppTextStyles.h3),
-        content: const Text('Are you sure you want to logout?'),
+        title: Text(l10n.logout, style: AppTextStyles.h3),
+        content: Text(l10n.areYouSureLogout),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: AppTextStyles.button.copyWith(color: AppColors.textSecondary)),
+            child: Text(l10n.cancel, style: AppTextStyles.button.copyWith(color: AppColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Logout', style: AppTextStyles.button.copyWith(color: AppColors.error)),
+            child: Text(l10n.logout, style: AppTextStyles.button.copyWith(color: AppColors.error)),
           ),
         ],
       ),
@@ -44,12 +45,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (confirmed != true || !mounted) return;
 
-    await context.read<ParentProvider>().clearParent();
-    await context.read<BabyProvider>().clearBaby();
-    await context.read<AuthProvider>().logout();
+    final parentProvider = context.read<ParentProvider>();
+    final babyProvider = context.read<BabyProvider>();
+    final authProvider = context.read<AuthProvider>();
 
-    if (!mounted) return;
-    context.go(RouteConstants.roleSelection);
+    await parentProvider.clearParent();
+    await babyProvider.clearBaby();
+    await authProvider.logout();
+
+    if (mounted) {
+      context.go(RouteConstants.roleSelection);
+    }
   }
 
   @override
@@ -64,40 +70,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(AppSpacing.l),
         children: [
           _buildSettingsGroup(
-            'PREFERENCES',
+            l10n.preferences.toUpperCase(),
             [
               const LanguageSettingsWidget(),
               SwitchListTile(
-                title: Text('Notifications', style: AppTextStyles.subheading2),
+                title: Text(l10n.notifications, style: AppTextStyles.subheading2),
                 secondary: const Icon(Icons.notifications_none_outlined, color: AppColors.primary, size: 22),
                 value: _notificationsEnabled,
                 onChanged: (v) => setState(() => _notificationsEnabled = v),
-                activeColor: AppColors.primary,
+                activeThumbColor: AppColors.primary,
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.l),
           _buildSettingsGroup(
-            'ACCOUNT',
+            l10n.accountLabel.toUpperCase(),
             [
               _SettingsTile(
                 icon: Icons.person_outline,
-                label: 'Edit Profile',
+                label: l10n.editProfile,
                 onTap: () => context.push(RouteConstants.profile),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.l),
           _buildSettingsGroup(
-            'ABOUT',
+            l10n.aboutLabel.toUpperCase(),
             [
-              const Padding(
-                padding: EdgeInsets.all(AppSpacing.m),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.m),
                 child: Column(
                   children: [
-                    _InfoRow(label: 'App',     value: 'Baalshravya'),
-                    _InfoRow(label: 'Partner', value: 'JNMC Audiology'),
-                    _InfoRow(label: 'Version', value: '1.0.0'),
+                    _InfoRow(label: l10n.appLabel,     value: l10n.appName),
+                    _InfoRow(label: l10n.partnerLabel, value: 'JNMC Audiology'),
+                    _InfoRow(label: l10n.versionLabel, value: '1.0.0'),
                   ],
                 ),
               ),
@@ -107,10 +113,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton.icon(
             onPressed: _handleLogout,
             icon: const Icon(Icons.logout, color: AppColors.error),
-            label: Text('Logout', style: AppTextStyles.button.copyWith(color: AppColors.error)),
+            label: Text(l10n.logout, style: AppTextStyles.button.copyWith(color: AppColors.error)),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.m),
-              backgroundColor: AppColors.error.withOpacity(0.05),
+              backgroundColor: AppColors.error.withValues(alpha: 0.05),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusM)),
             ),
           ),

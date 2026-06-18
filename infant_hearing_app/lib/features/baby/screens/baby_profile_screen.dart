@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
@@ -15,8 +14,9 @@ import '../../../shared/widgets/app_dropdown.dart';
 import '../../../shared/widgets/step_indicator.dart';
 import '../../../shared/widgets/screen_header.dart';
 import '../../../shared/widgets/app_card.dart';
-import '../../../features/auth/providers/auth_provider.dart';
 import '../providers/baby_provider.dart';
+import '../../auth/providers/auth_provider.dart' as infant_auth;
+import '../../parent/providers/parent_provider.dart' as infant_parent;
 
 class BabyProfileScreen extends StatefulWidget {
   const BabyProfileScreen({super.key});
@@ -29,14 +29,14 @@ class _BabyProfileScreenState extends State<BabyProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _dobController = TextEditingController();
-  final _weightController = TextEditingController();
+  final _birthWeightController = TextEditingController();
   final _gestationalAgeController = TextEditingController();
-  final _medicalNotesController = TextEditingController();
+  final _nicuDurationController = TextEditingController();
 
   bool _nicuAdmission = false;
-  String? _selectedDeliveryMode;
   String? _selectedGender;
   DateTime? _selectedDob;
+  String? _selectedBirthType;
 
   @override
   void initState() {
@@ -48,13 +48,14 @@ class _BabyProfileScreenState extends State<BabyProfileScreen> {
         _nameController.text = baby.name;
         _selectedDob = baby.dob;
         _dobController.text = DateFormat('dd/MM/yyyy').format(baby.dob);
-        _weightController.text = baby.birthWeight.toString();
-        _gestationalAgeController.text = baby.gestationalAge.toString();
-        _medicalNotesController.text = baby.medicalNotes ?? '';
+        _birthWeightController.text = baby.birthWeight?.toString() ?? '';
+        _gestationalAgeController.text = baby.gestationalAge?.toString() ?? '';
+        _nicuDurationController.text = baby.nicuDuration?.toString() ?? '';
+
         setState(() {
-          _nicuAdmission = baby.nicuAdmission;
-          _selectedDeliveryMode = baby.deliveryMode;
+          _nicuAdmission = baby.riskNicu;
           _selectedGender = baby.gender;
+          _selectedBirthType = baby.birthType;
         });
       }
     });
@@ -64,9 +65,9 @@ class _BabyProfileScreenState extends State<BabyProfileScreen> {
   void dispose() {
     _nameController.dispose();
     _dobController.dispose();
-    _weightController.dispose();
+    _birthWeightController.dispose();
     _gestationalAgeController.dispose();
-    _medicalNotesController.dispose();
+    _nicuDurationController.dispose();
     super.dispose();
   }
 
@@ -116,22 +117,25 @@ class _BabyProfileScreenState extends State<BabyProfileScreen> {
       return;
     }
 
-    if (_selectedDeliveryMode == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select mode of delivery')),
-      );
-      return;
-    }
-
+    final auth = context.read<infant_auth.AuthProvider>(); // Needs import 'package:infant_hearing_app/features/auth/providers/auth_provider.dart' as infant_auth;
+    final user = auth.currentUserProfile;
+    final parent = context.read<infant_parent.ParentProvider>().parent; // Needs import 'package:infant_hearing_app/features/parent/providers/parent_provider.dart' as infant_parent;
+    
     final success = await context.read<BabyProvider>().saveBaby(
           name: _nameController.text.trim(),
           dob: _selectedDob!,
           gender: _selectedGender!,
-          birthWeight: double.tryParse(_weightController.text.trim()) ?? 0.0,
-          gestationalAge: int.tryParse(_gestationalAgeController.text.trim()) ?? 0,
+          parentName: parent?.name ?? user?.name ?? 'Unknown',
+          parentPhone: parent?.phone ?? user?.phone ?? 'Unknown',
+          createdBy: user?.uid ?? 'Unknown',
           nicuAdmission: _nicuAdmission,
-          deliveryMode: _selectedDeliveryMode!,
-          medicalNotes: _medicalNotesController.text.trim(),
+          birthWeight: double.tryParse(_birthWeightController.text.trim()),
+          gestationalAge: int.tryParse(_gestationalAgeController.text.trim()),
+          birthType: _selectedBirthType,
+          nicuDuration: _nicuAdmission ? int.tryParse(_nicuDurationController.text.trim()) : null,
+          hospitalName: null,
+          pediatricianName: null,
+          hearingScreeningStatus: null,
         );
 
     if (!mounted) return;
@@ -163,7 +167,7 @@ class _BabyProfileScreenState extends State<BabyProfileScreen> {
               Container(
                 width: 64,
                 height: 64,
-                decoration: BoxDecoration(color: AppColors.success.withOpacity(0.1), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.1), shape: BoxShape.circle),
                 child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 40),
               ),
               const SizedBox(height: AppSpacing.l),
@@ -199,6 +203,12 @@ class _BabyProfileScreenState extends State<BabyProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () {
+            context.go(RouteConstants.parentProfile);
+          },
+        ),
         title: const Text('Child Profile'),
       ),
       body: SafeArea(
@@ -228,14 +238,14 @@ class _BabyProfileScreenState extends State<BabyProfileScreen> {
                       ),
                       const SizedBox(height: AppSpacing.xxl),
 
-                      _buildSectionTitle('BASIC INFORMATION'),
+                      _buildSectionTitle('BASIC DETAILS'),
                       AppCard(
                         child: Column(
                           children: [
                             AppTextField(
                               controller: _nameController,
-                              label: l10n.infantName,
-                              prefixIcon: Icons.face_rounded,
+                              label: 'Child Full Name',
+                              prefixIcon: Icons.child_care_rounded,
                               textCapitalization: TextCapitalization.words,
                               validator: (v) => Validators.required(v, fieldName: l10n.infantName),
                             ),
@@ -257,11 +267,9 @@ class _BabyProfileScreenState extends State<BabyProfileScreen> {
                                   child: AppDropdown<String>(
                                     value: _selectedGender,
                                     label: 'Gender',
-                                    prefixIcon: Icons.people_outline,
                                     items: const [
                                       DropdownMenuItem(value: 'Male', child: Text('Male')),
                                       DropdownMenuItem(value: 'Female', child: Text('Female')),
-                                      DropdownMenuItem(value: 'Other', child: Text('Other')),
                                     ],
                                     onChanged: (v) => setState(() => _selectedGender = v),
                                   ),
@@ -274,54 +282,79 @@ class _BabyProfileScreenState extends State<BabyProfileScreen> {
 
                       const SizedBox(height: AppSpacing.l),
 
-                      _buildSectionTitle('CLINICAL DETAILS'),
+                      _buildSectionTitle('MEDICAL INFORMATION'),
                       AppCard(
                         child: Column(
                           children: [
-                            AppTextField(
-                              controller: _weightController,
-                              label: l10n.birthWeight,
-                              prefixIcon: Icons.monitor_weight_outlined,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              validator: (v) => Validators.weight(v),
-                            ),
-                            const SizedBox(height: AppSpacing.m),
-                            AppTextField(
-                              controller: _gestationalAgeController,
-                              label: l10n.gestationalAge,
-                              prefixIcon: Icons.hourglass_empty_rounded,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                              validator: (v) => Validators.gestationalAge(v),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: AppTextField(
+                                    controller: _birthWeightController,
+                                    label: 'Birth Weight (kg)',
+                                    prefixIcon: Icons.monitor_weight_outlined,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.m),
+                                Expanded(
+                                  child: AppTextField(
+                                    controller: _gestationalAgeController,
+                                    label: 'Gestational Age',
+                                    prefixIcon: Icons.pregnant_woman_outlined,
+                                    keyboardType: TextInputType.number,
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: AppSpacing.m),
                             AppDropdown<String>(
-                              value: _selectedDeliveryMode,
-                              label: l10n.deliveryMode,
-                              prefixIcon: Icons.local_hospital_outlined,
-                              items: [
-                                DropdownMenuItem(value: 'Normal', child: Text(l10n.normalDelivery)),
-                                DropdownMenuItem(value: 'C-Section', child: Text(l10n.cesareanDelivery)),
+                              value: _selectedBirthType,
+                              label: 'Birth Type',
+                              items: const [
+                                DropdownMenuItem(value: 'Normal Delivery', child: Text('Normal')),
+                                DropdownMenuItem(value: 'C-Section', child: Text('C-Section')),
+                                DropdownMenuItem(value: 'Assisted Delivery', child: Text('Assisted')),
                               ],
-                              onChanged: (v) => setState(() => _selectedDeliveryMode = v),
+                              onChanged: (v) => setState(() => _selectedBirthType = v),
                             ),
                           ],
                         ),
                       ),
-
+                      
                       const SizedBox(height: AppSpacing.l),
-
-                      _buildSectionTitle('NICU STATUS'),
+                      
                       AppCard(
-                        padding: EdgeInsets.zero,
-                        child: SwitchListTile(
-                          title: Text(l10n.nicuAdmission, style: AppTextStyles.subheading1),
-                          value: _nicuAdmission,
-                          onChanged: (v) => setState(() => _nicuAdmission = v),
-                          activeColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.s),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.add_box, color: AppColors.textSecondary),
+                                const SizedBox(width: AppSpacing.m),
+                                Expanded(
+                                  child: Text('NICU Stay Required?', style: AppTextStyles.bodyLarge),
+                                ),
+                                Switch(
+                                  value: _nicuAdmission,
+                                  onChanged: (v) => setState(() => _nicuAdmission = v),
+                                  activeThumbColor: AppColors.primary,
+                                ),
+                              ],
+                            ),
+                            if (_nicuAdmission) ...[
+                              const Divider(height: AppSpacing.l),
+                              AppTextField(
+                                controller: _nicuDurationController,
+                                label: 'NICU Duration (Days)',
+                                prefixIcon: Icons.timer_outlined,
+                                keyboardType: TextInputType.number,
+                              ),
+                            ]
+                          ],
                         ),
                       ),
-
+                      
                       const SizedBox(height: AppSpacing.xxxl),
 
                       AppPrimaryButton(

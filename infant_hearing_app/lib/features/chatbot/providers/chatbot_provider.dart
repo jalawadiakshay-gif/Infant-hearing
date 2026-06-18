@@ -4,8 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:infant_hearing_app/core/constants/app_language.dart';
 import 'package:infant_hearing_app/features/chatbot/services/chat_message.dart';
 import 'package:infant_hearing_app/features/chatbot/services/chatbot_knowledge_base.dart';
-
-import 'package:infant_hearing_app/core/constants/env.dart';
+import 'package:infant_hearing_app/core/config/app_config.dart';
 
 class ChatbotProvider extends ChangeNotifier {
   static const String _apiEndpoint = 'https://api.anthropic.com/v1/messages';
@@ -93,7 +92,7 @@ class ChatbotProvider extends ChangeNotifier {
     }
 
     // TEMP MOCK: Disable AI API call for frontend development if useMocks is enabled
-    if (Env.useMocks) {
+    if (AppConfig.useMocks) {
       await Future.delayed(const Duration(seconds: 1));
       return ChatbotKnowledgeBase.fallback(_language);
     }

@@ -10,7 +10,8 @@ import 'package:infant_hearing_app/core/theme/app_colors.dart';
 import 'package:infant_hearing_app/core/theme/app_spacing.dart';
 import 'package:infant_hearing_app/core/theme/app_text_styles.dart';
 import 'package:infant_hearing_app/core/constants/route_constants.dart';
-import 'package:infant_hearing_app/shared/widgets/app_button.dart';
+
+import 'package:infant_hearing_app/data/models/v2/child.dart';
 
 class AshaDashboardScreen extends StatelessWidget {
   const AshaDashboardScreen({super.key});
@@ -21,6 +22,8 @@ class AshaDashboardScreen extends StatelessWidget {
       builder: (context, provider, _) {
         final asha = provider.asha;
         if (asha == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
+        final villages = provider.children.map((c) => c.village).whereType<String>().toSet().toList();
 
         return Scaffold(
           backgroundColor: AppColors.background,
@@ -168,10 +171,10 @@ class AshaDashboardScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: AppSpacing.s),
-                    if (provider.pendingScreenings.isEmpty)
+                    if (provider.children.where((c) => c.status == 'new').isEmpty)
                       _buildEmptyState('No pending screenings')
                     else
-                      ...provider.pendingScreenings.take(3).map((infant) => _PendingInfantCard(infant: infant)),
+                      ...provider.children.where((c) => c.status == 'new').take(3).map((infant) => _PendingInfantCard(infant: infant)),
 
                     const SizedBox(height: AppSpacing.xl),
 
@@ -184,17 +187,17 @@ class AshaDashboardScreen extends StatelessWidget {
                           style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w800, letterSpacing: 1.2),
                         ),
                         Text(
-                          '${asha.assignedVillages.length} Total',
+                          '${villages.length} Total',
                           style: AppTextStyles.caption,
                         ),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.m),
-                    ...asha.assignedVillages.map((village) => Padding(
+                    ...villages.map((village) => Padding(
                           padding: const EdgeInsets.only(bottom: 10),
                           child: VillageTileWidget(
                             villageName: village,
-                            infantCount: provider.infantCountForVillage(village),
+                            infantCount: provider.children.where((c) => c.village == village).length,
                             onTap: () => context.push(
                               RouteConstants.ashaVillage,
                               extra: {'village': village},
@@ -225,7 +228,7 @@ class AshaDashboardScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusL),
-        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
       ),
       child: Center(
         child: Column(
@@ -261,9 +264,9 @@ class _QuickActionButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.l),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.05),
+          color: color.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(AppSpacing.radiusL),
-          border: Border.all(color: color.withOpacity(0.2)),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Column(
           children: [
@@ -281,7 +284,7 @@ class _QuickActionButton extends StatelessWidget {
 }
 
 class _PendingInfantCard extends StatelessWidget {
-  final Map<String, dynamic> infant;
+  final Child infant;
   const _PendingInfantCard({required this.infant});
 
   @override
@@ -292,21 +295,21 @@ class _PendingInfantCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusL),
-        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: AppColors.primary.withOpacity(0.1),
-            child: Text(infant['name'][0], style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+            child: Text(infant.name[0], style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(width: AppSpacing.m),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(infant['name'], style: AppTextStyles.subheading1),
-                Text('Age: ${infant['ageMonths']} months • ${infant['gender']}', style: AppTextStyles.caption),
+                Text(infant.name, style: AppTextStyles.subheading1),
+                Text('Age: ${infant.ageMonths} months • ${infant.gender}', style: AppTextStyles.caption),
               ],
             ),
           ),

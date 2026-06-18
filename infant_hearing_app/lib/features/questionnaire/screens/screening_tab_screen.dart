@@ -10,12 +10,14 @@ import 'package:infant_hearing_app/shared/widgets/app_card.dart';
 import '../providers/questionnaire_provider.dart';
 import '../models/questionnaire_models.dart';
 import '../../boa/presentation/controllers/boa_controller.dart';
+import 'package:infant_hearing_app/core/localization/app_localizations.dart';
 
 class ScreeningTabScreen extends StatelessWidget {
   const ScreeningTabScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final questionnaireProvider = context.watch<QuestionnaireProvider>();
     final boaController = context.watch<BoaController>();
     
@@ -26,7 +28,7 @@ class ScreeningTabScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Hearing Screening', style: AppTextStyles.h3),
+        title: Text(l10n.hearingScreening, style: AppTextStyles.h3),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.l),
@@ -36,10 +38,10 @@ class ScreeningTabScreen extends StatelessWidget {
             _buildInfoCard(
               context: context,
               icon: Icons.headphones_rounded,
-              title: 'Phase 1: Questionnaire',
-              description: 'A quick 7-section assessment of your baby\'s hearing development and medical history.',
+              title: l10n.phase1Screening,
+              description: l10n.phase1Desc,
               color: AppColors.primary,
-              status: isQuestionnaireComplete ? 'COMPLETED' : 'PENDING',
+              status: isQuestionnaireComplete ? l10n.statusCompleted : l10n.statusPending,
               statusColor: isQuestionnaireComplete ? AppColors.success : AppColors.primary,
               onTap: () {
                 if (isQuestionnaireComplete) {
@@ -53,15 +55,15 @@ class ScreeningTabScreen extends StatelessWidget {
             _buildInfoCard(
               context: context,
               icon: Icons.graphic_eq_rounded,
-              title: 'Phase 2: BOA Test',
-              description: 'Behavioral Observation Audiometry. Performed if results suggest a referral is needed.',
+              title: l10n.phase2Boa,
+              description: l10n.phase2Desc,
               color: isQuestionnaireComplete ? AppColors.secondary : AppColors.textHint,
-              status: isBoaComplete ? 'COMPLETED' : needsBoa ? 'REQUIRED' : isQuestionnaireComplete ? 'NOT REQUIRED' : 'LOCKED',
+              status: isBoaComplete ? l10n.statusCompleted : needsBoa ? l10n.statusRequired : isQuestionnaireComplete ? l10n.statusNotRequired : l10n.statusLocked,
               statusColor: isBoaComplete ? AppColors.success : needsBoa ? AppColors.error : AppColors.textHint,
               onTap: () {
                 if (!isQuestionnaireComplete) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please complete Phase 1: Questionnaire first.')),
+                    SnackBar(content: Text(l10n.completePhase1First)),
                   );
                   return;
                 }
@@ -70,9 +72,9 @@ class ScreeningTabScreen extends StatelessWidget {
                   showDialog(
                     context: context,
                     builder: (_) => AlertDialog(
-                      title: const Text('BOA Not Required'),
-                      content: const Text('Phase 2 BOA test is only triggered for REFER outcomes from Phase 1. Your Phase 1 result does not require this test.'),
-                      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+                      title: Text(l10n.boaNotRequired),
+                      content: Text(l10n.boaNotRequiredDesc),
+                      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.ok))],
                     ),
                   );
                   return;
@@ -100,10 +102,10 @@ class ScreeningTabScreen extends StatelessWidget {
                 }
               },
               label: isBoaComplete
-                ? 'View Screening History'
+                ? l10n.viewScreeningHistory
                 : isQuestionnaireComplete 
-                  ? (needsBoa ? 'Start Phase 2: BOA' : 'View Phase 1 Result')
-                  : 'Start Phase 1: Questionnaire',
+                  ? (needsBoa ? l10n.startPhase2 : l10n.viewPhase1Result)
+                  : l10n.startPhase1Desc,
             ),
           ],
         ),
@@ -130,7 +132,7 @@ class ScreeningTabScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(AppSpacing.s),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppSpacing.radiusM),
               ),
               child: Icon(icon, color: color),
@@ -147,7 +149,7 @@ class ScreeningTabScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
+                          color: statusColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(

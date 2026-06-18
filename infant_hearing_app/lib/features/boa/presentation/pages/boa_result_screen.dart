@@ -14,6 +14,8 @@ import '../../domain/boa_models.dart';
 import '../controllers/boa_controller.dart';
 import '../controllers/boa_checklist_controller.dart';
 import '../../services/boa_report_service.dart';
+import 'package:infant_hearing_app/shared/widgets/report_type_dialog.dart';
+import 'package:infant_hearing_app/features/auth/providers/auth_provider.dart';
 
 class BoaResultScreen extends StatelessWidget {
   const BoaResultScreen({super.key});
@@ -41,7 +43,14 @@ class BoaResultScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(l10n.screeningResult),
-        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            controller.reset();
+            context.read<BoaChecklistController>().reset();
+            context.go(RouteConstants.mainLayout);
+          },
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.share_outlined),
@@ -64,20 +73,38 @@ class BoaResultScreen extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xl),
 
-              _SectionLabel('INFANT DETAILS'),
+              const _SectionLabel('INFANT DETAILS'),
               const SizedBox(height: AppSpacing.s),
               AppCard(
                 child: Column(
                   children: [
                     _InfoRow(label: 'Name', value: baby?.name ?? 'Unknown'),
-                    _InfoRow(label: 'Age', value: baby?.age ?? 'N/A'),
+                    _InfoRow(label: 'Age', value: baby?.ageMonths != null ? '${baby!.ageMonths} months' : 'N/A'),
                     _InfoRow(label: 'Parent', value: parent?.name ?? 'N/A'),
                   ],
                 ),
               ),
               const SizedBox(height: AppSpacing.xl),
 
-              _SectionLabel('TRIAL SUMMARY'),
+              const _SectionLabel('RELIABILITY & DATA QUALITY'),
+              const SizedBox(height: AppSpacing.s),
+              AppCard(
+                child: Column(
+                  children: [
+                    _ReliabilityRow(
+                      label: 'Session Reliability',
+                      value: '${(state.testReliability * 100).toStringAsFixed(0)}%',
+                      color: state.testReliability > 0.8 ? AppColors.success : AppColors.warning,
+                    ),
+                    const Divider(),
+                    _InfoRow(label: 'Avg Noise Floor', value: '${state.trials.isEmpty ? "N/A" : (state.trials.map((t) => t.noiseDb).reduce((a, b) => a + b) / state.trials.length).toStringAsFixed(1)} dB'),
+                    _InfoRow(label: 'Catch Trials Passed', value: '${state.trials.where((t) => t.isCatchTrial && t.response == BoaResponse.noResponse).length} / ${state.trials.where((t) => t.isCatchTrial).length}'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+
+              const _SectionLabel('TRIAL SUMMARY'),
               const SizedBox(height: AppSpacing.s),
               AppCard(
                 padding: EdgeInsets.zero,
@@ -123,9 +150,53 @@ class BoaResultScreen extends StatelessWidget {
                 label: l10n.submit,
                 icon: Icons.cloud_upload_outlined,
                 onPressed: () async {
-                  await controller.submitResult();
-                  if (context.mounted) {
-                    context.go(RouteConstants.mainLayout);
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => AlertDialog(
+                      content: Row(
+                        children: [
+                          const CircularProgressIndicator(),
+                          const SizedBox(width: AppSpacing.m),
+                          Expanded(child: Text('Uploading video & PDF to database...', style: AppTextStyles.bodyMedium)),
+                        ],
+                      ),
+                    ),
+                  );
+
+                  try {
+                    final reportService = BoaReportService();
+                    final ageStr = baby?.ageMonths != null ? '${baby!.ageMonths} months' : 'N/A';
+                    
+                    final pdfBytes = await reportService.generateReportBytes(
+                      reportType: BoaReportType.clinical,
+                      babyName: baby?.name ?? 'Unknown',
+                      age: ageStr,
+                      screeningId: 'BOA-${DateTime.now().millisecondsSinceEpoch}',
+                      outcome: controller.state.outcome!,
+                      trials: controller.state.trials,
+                      l10n: l10n,
+                    );
+
+                    if (context.mounted) {
+                      final auth = context.read<AuthProvider>();
+                      await controller.submitResult(
+                        childId: baby?.childId ?? '',
+                        conductedBy: auth.currentUserProfile?.uid ?? '',
+                        pdfBytes: pdfBytes,
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error saving results: $e')),
+                      );
+                    }
+                  } finally {
+                    if (context.mounted) {
+                      Navigator.of(context).pop(); // dismiss dialog
+                      context.go(RouteConstants.mainLayout);
+                    }
                   }
                 },
               ),
@@ -154,14 +225,42 @@ class BoaResultScreen extends StatelessWidget {
   }
 
   Future<void> _generatePDF(BuildContext context, BoaController controller, baby, parent) async {
-    final reportService = BoaReportService();
-    await reportService.generateAndShareReport(
-      babyName: baby?.name ?? 'Unknown',
-      age: baby?.age ?? 'N/A',
-      screeningId: 'BOA-${DateTime.now().millisecondsSinceEpoch}',
-      outcome: controller.state.outcome!,
-      trials: controller.state.trials,
+    final auth = context.read<AuthProvider>();
+    final isAsha = auth.phoneNumber == null; // A heuristic: ASHA logs in with email
+
+    final selection = await ReportTypeSelectionDialog.show(context, isAshaDefault: isAsha);
+    if (selection == null || !context.mounted) return; // User cancelled
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
+
+    try {
+      final reportService = BoaReportService();
+      final l10n = AppLocalizations.of(context);
+      final ageStr = baby?.ageMonths != null ? '${baby.ageMonths} months' : 'N/A';
+      await reportService.generateAndShareReport(
+        reportType: selection == ReportSelectionType.clinical ? BoaReportType.clinical : BoaReportType.parent,
+        babyName: baby?.name ?? 'Unknown',
+        age: ageStr,
+        screeningId: 'BOA-${DateTime.now().millisecondsSinceEpoch}',
+        outcome: controller.state.outcome!,
+        trials: controller.state.trials,
+        l10n: l10n,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating report: $e')),
+        );
+      }
+    } finally {
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+    }
   }
 
   String _getOutcomeLabel(BoaOutcome outcome, AppLocalizations l10n) {
@@ -209,51 +308,116 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
+class _ReliabilityRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _ReliabilityRow({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: color.withValues(alpha: 0.5)),
+            ),
+            child: Text(
+              value,
+              style: AppTextStyles.button.copyWith(color: color, fontSize: 14, fontWeight: FontWeight.w900),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TrialsTable extends StatelessWidget {
   final List<BoaTrial> trials;
   const _TrialsTable({required this.trials});
 
   @override
   Widget build(BuildContext context) {
-    return Table(
-      border: TableBorder(horizontalInside: BorderSide(color: AppColors.border.withOpacity(0.5))),
+    return Column(
       children: [
-        TableRow(
-          decoration: BoxDecoration(color: AppColors.primaryLight.withOpacity(0.2)),
-          children: const [
-            _TableCell('Level', isHeader: true),
-            _TableCell('Freq', isHeader: true),
-            _TableCell('Result', isHeader: true),
-          ],
+        Container(
+          decoration: BoxDecoration(color: AppColors.primaryLight.withValues(alpha: 0.2)),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.s),
+          child: Row(
+            children: [
+              Expanded(child: Text('Level', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold))),
+              Expanded(child: Text('Freq', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold))),
+              Expanded(flex: 2, child: Text('Result', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold))),
+            ],
+          ),
         ),
-        ...trials.map((t) => TableRow(
-          children: [
-            _TableCell(t.dbLevel.label),
-            _TableCell(t.frequency.label),
-            _TableCell(t.response.label, color: t.response == BoaResponse.responseDetected ? AppColors.success : AppColors.error),
-          ],
-        )),
+        ...trials.asMap().entries.map((entry) {
+          final i = entry.key;
+          final t = entry.value;
+          final bool isLast = i == trials.length - 1;
+          
+          return Container(
+            decoration: BoxDecoration(
+              border: isLast ? null : Border(bottom: BorderSide(color: AppColors.border.withValues(alpha: 0.5))),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.m),
+                  child: Row(
+                    children: [
+                      Expanded(child: Text(t.dbLevel.label, style: AppTextStyles.bodySmall)),
+                      Expanded(child: Text(t.frequency.label, style: AppTextStyles.bodySmall)),
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          t.response.label,
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: t.response == BoaResponse.responseDetected ? AppColors.success : AppColors.error,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (t.cvExplanation != null && t.cvExplanation!.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(left: AppSpacing.m, right: AppSpacing.m, bottom: AppSpacing.m),
+                    padding: const EdgeInsets.all(AppSpacing.s),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusS),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.psychology_outlined, size: 16, color: AppColors.primary),
+                        const SizedBox(width: AppSpacing.s),
+                        Expanded(
+                          child: Text(
+                            t.cvExplanation!,
+                            style: AppTextStyles.caption.copyWith(fontStyle: FontStyle.italic, color: AppColors.textSecondary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }),
       ],
-    );
-  }
-}
-
-class _TableCell extends StatelessWidget {
-  final String text;
-  final bool isHeader;
-  final Color? color;
-  const _TableCell(this.text, {this.isHeader = false, this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.m),
-      child: Text(
-        text,
-        style: isHeader 
-            ? AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold) 
-            : AppTextStyles.bodySmall.copyWith(color: color, fontWeight: color != null ? FontWeight.bold : null),
-      ),
     );
   }
 }
@@ -293,7 +457,7 @@ class _ResultHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      color: color.withOpacity(0.04),
+      color: color.withValues(alpha: 0.04),
       borderRadius: AppSpacing.radiusXL,
       child: Column(
         children: [
@@ -301,7 +465,7 @@ class _ResultHeroCard extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 44),
@@ -339,9 +503,9 @@ class _ReferralCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.l),
       decoration: BoxDecoration(
-        color: AppColors.error.withOpacity(0.05),
+        color: AppColors.error.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(AppSpacing.radiusL),
-        border: Border.all(color: AppColors.error.withOpacity(0.4), width: 1.5),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.4), width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

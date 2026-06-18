@@ -23,11 +23,7 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
 
     if (authProvider.isAuthenticated) {
-      debugPrint('AppProvider: Authenticated, fetching data...');
-      await Future.wait([
-        parentProvider.fetchParent(),
-        babyProvider.fetchBabies(),
-      ]);
+      debugPrint('AppProvider: Authenticated, providers will auto-fetch via streams...');
     }
     _isInitialized = true;
     debugPrint('AppProvider: Initialized');

@@ -77,9 +77,9 @@ class _ResponseButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.l),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.05),
+          color: color.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(AppSpacing.radiusL),
-          border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 1.5),
         ),
         child: Row(
           children: [
@@ -87,7 +87,7 @@ class _ResponseButton extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 24),
@@ -105,7 +105,7 @@ class _ResponseButton extends StatelessWidget {
               ),
             ),
             Icon(Icons.chevron_right_rounded,
-                color: color.withOpacity(0.5)),
+                color: color.withValues(alpha: 0.5)),
           ],
         ),
       ),

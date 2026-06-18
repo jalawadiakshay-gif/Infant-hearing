@@ -9,7 +9,8 @@ import 'package:infant_hearing_app/features/parent/providers/parent_provider.dar
 import 'package:infant_hearing_app/features/baby/providers/baby_provider.dart';
 import 'package:infant_hearing_app/shared/widgets/app_card.dart';
 
-import 'package:infant_hearing_app/features/baby/models/baby_model.dart';
+import 'package:infant_hearing_app/core/localization/app_localizations.dart';
+import 'package:infant_hearing_app/data/models/v2/child.dart';
 import 'package:infant_hearing_app/features/auth/providers/auth_provider.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -17,6 +18,7 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final parent = context.watch<ParentProvider>().parent;
     final babyProvider = context.watch<BabyProvider>();
     final babies = babyProvider.babies;
@@ -25,7 +27,7 @@ class ProfileScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Account Settings', style: AppTextStyles.h3),
+        title: Text(l10n.accountSettings, style: AppTextStyles.h3),
         elevation: 0,
         backgroundColor: Colors.transparent,
       ),
@@ -34,15 +36,15 @@ class ProfileScreen extends StatelessWidget {
         child: Column(
           children: [
             // ── Parent Header ───────────────────────────────────────────
-            _buildParentHeader(parent),
+            _buildParentHeader(parent, l10n),
             const SizedBox(height: AppSpacing.xl),
 
             // ── Baby Profiles ───────────────────────────────────────────
-            _buildBabyList(context, babies),
+            _buildBabyList(context, babies, l10n),
             const SizedBox(height: AppSpacing.xl),
 
             // ── App Settings ───────────────────────────────────────────
-            _buildSettingsSection(context, authProvider),
+            _buildSettingsSection(context, authProvider, l10n),
             const SizedBox(height: AppSpacing.xxxxl),
           ],
         ),
@@ -50,7 +52,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildParentHeader(parent) {
+  Widget _buildParentHeader(parent, AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.l),
       decoration: BoxDecoration(
@@ -73,9 +75,9 @@ class ProfileScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(parent?.name ?? 'Guardian', style: AppTextStyles.h3.copyWith(color: Colors.white)),
-                Text(parent?.phone ?? 'No phone linked', style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withValues(alpha: 0.9))),
-                Text(parent?.email ?? 'No email linked', style: AppTextStyles.caption.copyWith(color: Colors.white.withValues(alpha: 0.7))),
+                Text(parent?.name ?? l10n.guardian, style: AppTextStyles.h3.copyWith(color: Colors.white)),
+                Text(parent?.phone ?? l10n.noPhoneLinked, style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withValues(alpha: 0.9))),
+                Text(parent?.email ?? l10n.noEmailLinked, style: AppTextStyles.caption.copyWith(color: Colors.white.withValues(alpha: 0.7))),
               ],
             ),
           ),
@@ -88,31 +90,31 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBabyList(BuildContext context, List<BabyModel> babies) {
+  Widget _buildBabyList(BuildContext context, List<Child> babies, AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Child Profiles', style: AppTextStyles.subheading1.copyWith(fontWeight: FontWeight.bold)),
+            Text(l10n.childProfiles, style: AppTextStyles.subheading1.copyWith(fontWeight: FontWeight.bold)),
             TextButton.icon(
               onPressed: () => context.push(RouteConstants.babyProfile),
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add New'),
+              label: Text(l10n.addNew),
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.s),
         if (babies.isEmpty)
-          const Center(child: Text('No children registered yet.'))
+          Center(child: Text(l10n.noChildrenYet))
         else
-          ...babies.map((baby) => _buildBabyCard(context, baby)),
+          ...babies.map((baby) => _buildBabyCard(context, baby, l10n)),
       ],
     );
   }
 
-  Widget _buildBabyCard(BuildContext context, BabyModel baby) {
+  Widget _buildBabyCard(BuildContext context, Child baby, AppLocalizations l10n) {
     return AppCard(
       margin: const EdgeInsets.only(bottom: AppSpacing.m),
       padding: EdgeInsets.zero,
@@ -128,33 +130,33 @@ class ProfileScreen extends StatelessWidget {
           child: const Icon(Icons.child_care_rounded, color: AppColors.primary),
         ),
         title: Text(baby.name, style: AppTextStyles.subheading2.copyWith(fontWeight: FontWeight.bold)),
-        subtitle: Text('Age: ${baby.ageMonths} months', style: AppTextStyles.caption),
+        subtitle: Text(l10n.ageMonths(baby.ageMonths), style: AppTextStyles.caption),
         trailing: const Icon(Icons.chevron_right_rounded),
         onTap: () => context.push(RouteConstants.childDetail),
       ),
     );
   }
 
-  Widget _buildSettingsSection(BuildContext context, AuthProvider auth) {
+  Widget _buildSettingsSection(BuildContext context, AuthProvider auth, AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('App Settings', style: AppTextStyles.subheading1.copyWith(fontWeight: FontWeight.bold)),
+        Text(l10n.appSettingsLabel, style: AppTextStyles.subheading1.copyWith(fontWeight: FontWeight.bold)),
         const SizedBox(height: AppSpacing.s),
         AppCard(
           padding: EdgeInsets.zero,
           child: Column(
             children: [
-              _buildSettingTile(Icons.language_rounded, 'Language Preference', 'Change app language'),
+              _buildSettingTile(Icons.language_rounded, l10n.languagePreference, l10n.changeAppLanguage),
               const Divider(height: 1),
-              _buildSettingTile(Icons.notifications_outlined, 'Notifications', 'Manage alerts & reminders'),
+              _buildSettingTile(Icons.notifications_outlined, l10n.notifications, l10n.manageAlerts),
               const Divider(height: 1),
-              _buildSettingTile(Icons.security_rounded, 'Privacy & Security', 'Manage your data'),
+              _buildSettingTile(Icons.security_rounded, l10n.privacySecurity, l10n.manageData),
               const Divider(height: 1),
               _buildSettingTile(
                 Icons.logout_rounded, 
-                'Logout', 
-                'Sign out of your account', 
+                l10n.logout, 
+                l10n.signOutAccount, 
                 color: AppColors.error,
                 onTap: () async {
                   await auth.logout();

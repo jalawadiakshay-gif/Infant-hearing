@@ -9,12 +9,14 @@ import '../../../core/services/tts_service.dart';
 import '../../../features/baby/providers/baby_provider.dart';
 import '../../../features/asha/providers/asha_provider.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../auth/providers/auth_provider.dart' as infant_auth;
+import '../../parent/providers/parent_provider.dart' as infant_parent;
 import '../../../shared/widgets/app_card.dart';
+import '../../../shared/widgets/language_switcher.dart';
 import '../providers/questionnaire_provider.dart';
 import '../widgets/question_card.dart';
 import '../widgets/section_progress_header.dart';
 import 'questionnaire_result_screen.dart';
-
 class QuestionnaireScreen extends StatefulWidget {
   final Map<String, dynamic>? arguments;
   const QuestionnaireScreen({super.key, this.arguments});
@@ -80,23 +82,17 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> with WidgetsB
     }
 
     if (provider.isLastSection) {
-      await provider.submit();
-      
       final args = widget.arguments;
-      if (args != null && args['filledByAsha'] == true) {
-        final infantId = args['infantId'] as String;
-        final ashaProvider = context.read<AshaProvider>();
-        
-        await ashaProvider.saveQuestionnaireResult(
-          infantId: infantId,
-          result: {
-            'totalScore': provider.scoringResult?.totalScore,
-            'riskPercentage': provider.scoringResult?.riskPercentage,
-            'result': provider.scoringResult?.result.toString(),
-            'answers': provider.answers.map((k, v) => MapEntry(k, v.toString())),
-          },
-        );
-      }
+      final infantId = args != null && args['filledByAsha'] == true
+          ? args['infantId'] as String
+          : context.read<BabyProvider>().baby?.childId ?? '';
+          
+      final ashaProvider = context.read<AshaProvider>();
+      final authProvider = context.read<infant_auth.AuthProvider>();
+      final parentProvider = context.read<infant_parent.ParentProvider>();
+      final conductedBy = ashaProvider.asha?.userId ?? authProvider.currentUserProfile?.uid ?? parentProvider.parent?.uid ?? '';
+
+      await provider.submit(childId: infantId, conductedBy: conductedBy);
 
       if (!mounted) return;
       Navigator.of(context).push(
@@ -133,19 +129,20 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> with WidgetsB
   }
 
   void _showIncompleteDialog() {
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusL)),
-        title: Text('Unanswered Questions', style: AppTextStyles.h3),
+        title: Text(l10n.unansweredQuestions, style: AppTextStyles.h3),
         content: Text(
-          'Please answer all questions in this section before proceeding.',
+          l10n.answerAllQuestions,
           style: AppTextStyles.bodyMedium,
         ),
         actions: [
           TextButton(
             onPressed: Navigator.of(ctx).pop,
-            child: Text('OK', style: AppTextStyles.button.copyWith(color: AppColors.primary)),
+            child: Text(l10n.ok, style: AppTextStyles.button.copyWith(color: AppColors.primary)),
           ),
         ],
       ),
@@ -165,14 +162,17 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> with WidgetsB
         final section = provider.currentSection;
         final langCode = context.watch<LanguageProvider>().currentLanguage.code;
 
+        final l10n = AppLocalizations.of(context);
+
         return Scaffold(
           appBar: AppBar(
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
               onPressed: () => _onBack(provider),
             ),
-            title: Text('Phase 1 Screening', style: AppTextStyles.h3),
+            title: Text(l10n.phase1Screening, style: AppTextStyles.h3),
             actions: [
+              const LanguagePopupButton(),
               Center(
                 child: Padding(
                   padding: const EdgeInsets.only(right: AppSpacing.l),
@@ -207,7 +207,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> with WidgetsB
 
                         if (!section.questions.first.scored)
                           AppCard(
-                            color: AppColors.info.withOpacity(0.05),
+                            color: AppColors.info.withValues(alpha: 0.05),
                             padding: const EdgeInsets.all(AppSpacing.m),
                             child: Row(
                               children: [
@@ -215,8 +215,8 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> with WidgetsB
                                 const SizedBox(width: AppSpacing.s),
                                 Expanded(
                                   child: Text(
-                                    'This section is for information only and does not affect the risk score.',
-                                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.info),
+                                    l10n.informationOnlySection,
+                                    style: const TextStyle(color: AppColors.info, fontSize: 13),
                                   ),
                                 ),
                               ],
@@ -276,9 +276,9 @@ class _BottomNavBar extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.l),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: const Border(top: BorderSide(color: AppColors.border)),
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: Row(
         children: [

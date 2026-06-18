@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:uuid/uuid.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
-import 'package:infant_hearing_app/shared/repositories/boa_repository.dart';
+import '../../../../data/services/v2/app_firestore_service.dart';
+import '../../../../data/models/v2/screening.dart';
 import 'package:infant_hearing_app/core/services/tts_service.dart';
 import '../../domain/boa_models.dart';
 import '../state/boa_state.dart';
@@ -35,7 +36,7 @@ import '../../services/boa_cv_service.dart';
 /// 7. HABITUATION GUARD: After 3 consecutive no-responses at same level,
 ///    the controller warns the clinician.
 class BoaController extends ChangeNotifier {
-  final BoaRepository? boaRepository;
+  final AppFirestoreService? firestoreService;
   final TtsService _ttsService;
 
   // Each controller owns its own audio + cv instances
@@ -50,6 +51,7 @@ class BoaController extends ChangeNotifier {
   Timer? _cooldownTimer;
   Timer? _responseWindowTimer;  // Auto-close observation window
   Timer? _preCheckTimer;        // Delayed initialization guard
+  Timer? _noiseTimer;           // Simulate noise monitoring
 
   // ── Camera ─────────────────────────────────────────────────────────────────
   CameraController? _cameraController;
@@ -61,7 +63,7 @@ class BoaController extends ChangeNotifier {
   final Random _random = Random();
 
   BoaController({
-    this.boaRepository,
+    this.firestoreService,
     required TtsService ttsService,
   }) : _ttsService = ttsService;
 
@@ -85,7 +87,24 @@ class BoaController extends ChangeNotifier {
 
     await _ttsService.initialize();
     await _audioService.preloadAssets();
+    _startNoiseMonitoring();
     await _initializeCamera();
+    await _cvService.initializePoseDetector();
+  }
+
+  void setInfantAge(int months) {
+    _cvService.setInfantAge(months);
+  }
+
+  void _startNoiseMonitoring() {
+    _noiseTimer?.cancel();
+    _noiseTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (_disposed) { timer.cancel(); return; }
+      // Simulate real-world noise jitter (30-40dB base)
+      final base = 30.0 + _random.nextDouble() * 10;
+      _state = _state.copyWith(noiseLevel: base);
+      _safeNotify();
+    });
   }
 
   Future<void> _initializeCamera() async {
@@ -156,14 +175,25 @@ class BoaController extends ChangeNotifier {
     _startImageStream();
   }
 
-  void _startImageStream() {
+  String? recordedVideoPath;
+
+  void _startImageStream() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) return;
     try {
-      _cameraController!.startImageStream(_onCameraFrame);
+      if (_cameraController!.value.isRecordingVideo) return;
+      await _cameraController!.startVideoRecording(onAvailable: _onCameraFrame);
       _state = _state.copyWith(phase: BoaTestPhase.infantDetection);
       _safeNotify();
     } catch (e) {
-      debugPrint('[BoaCtrl] startImageStream error: $e');
+      debugPrint('[BoaCtrl] startVideoRecording error: $e');
+      // Fallback
+      try {
+        await _cameraController!.startImageStream(_onCameraFrame);
+        _state = _state.copyWith(phase: BoaTestPhase.infantDetection);
+        _safeNotify();
+      } catch (e2) {
+        debugPrint('[BoaCtrl] startImageStream fallback error: $e2');
+      }
     }
   }
 
@@ -196,6 +226,10 @@ class BoaController extends ChangeNotifier {
         aiConfidence: result.responseConfidence,
         responseStrength: result.responseStrength,
         baselineMotion: result.motionMetric,
+        poseConfidence: result.poseConfidence,
+        detectedBehaviors: result.detectedBehaviors,
+        cvExplanation: result.explanation.toDisplayString(),
+        responseLatencyMs: result.responseLatencyMs,
       );
       _safeNotify();
     } catch (e) {
@@ -235,19 +269,19 @@ class BoaController extends ChangeNotifier {
     // Determine if catch trial (20% chance, only after first real trial)
     final isCatch = _state.trials.isNotEmpty && _random.nextDouble() < 0.20;
 
-    // Brief calibration pause (1–2.5s random delay — prevents anticipatory response)
+    // Redesigned Flow: Baseline Learning (3s) -> Stimulus
     _state = _state.copyWith(
-      phase: BoaTestPhase.calibration,
+      phase: BoaTestPhase.baselineLearning,
       clearError: true,
       clearStatusOverride: true,
       isCatchTrial: isCatch,
     );
     _safeNotify();
 
-    final delay = 1000 + _random.nextInt(1500);
-    await Future.delayed(Duration(milliseconds: delay));
+    // 3 seconds of baseline learning to calibrate "resting" behavior
+    await Future.delayed(const Duration(seconds: 3));
 
-    if (_disposed || _state.phase != BoaTestPhase.calibration) return;
+    if (_disposed || _state.phase != BoaTestPhase.baselineLearning) return;
 
     // Enter playing phase
     _state = _state.copyWith(
@@ -338,9 +372,13 @@ class BoaController extends ChangeNotifier {
       isCatchTrial: _state.isCatchTrial,
       aiConfidence: _state.aiConfidence,
       aiDetection: _state.aiDetection,
+      noiseDb: _state.noiseLevel,
+      reliability: _calculateTrialReliability(response),
+      cvExplanation: _state.cvExplanation,
     );
 
     final updatedTrials = [..._state.trials, trial];
+    final reliabilityIndex = _calculateOverallReliability(updatedTrials);
     final newHabCount = (response == BoaResponse.noResponse)
         ? _state.habituationCount + 1
         : 0;
@@ -382,6 +420,7 @@ class BoaController extends ChangeNotifier {
       phase: nextPhase,
       currentDbLevel: nextDb,
       outcome: finalOutcome,
+      testReliability: reliabilityIndex,
       isCatchTrial: false,
       habituationCount: newHabCount,
       isRecording: false,
@@ -408,6 +447,28 @@ class BoaController extends ChangeNotifier {
     });
   }
 
+  // ── Reliability Calculations ───────────────────────────────────────────────
+
+  double _calculateTrialReliability(BoaResponse response) {
+    // Penalty for high noise (>45dB)
+    double score = 1.0;
+    if (_state.noiseLevel > 45) score -= 0.3;
+    if (_state.noiseLevel > 60) score -= 0.5;
+
+    // Penalty for false positive in catch trial
+    if (_state.isCatchTrial && response == BoaResponse.responseDetected) {
+      score = 0.0;
+    }
+
+    return score.clamp(0.0, 1.0);
+  }
+
+  double _calculateOverallReliability(List<BoaTrial> trials) {
+    if (trials.isEmpty) return 1.0;
+    final total = trials.map((t) => t.reliability).reduce((a, b) => a + b);
+    return (total / trials.length).clamp(0.0, 1.0);
+  }
+
   // ── Manual overrides ───────────────────────────────────────────────────────
 
   void setManualPresenceOverride(bool value) {
@@ -428,19 +489,56 @@ class BoaController extends ChangeNotifier {
 
   // ── Submit & Reset ─────────────────────────────────────────────────────────
 
-  Future<void> submitResult() async {
-    if (_state.outcome == null || boaRepository == null) return;
+  Future<void> submitResult({
+    required String childId, 
+    required String conductedBy, 
+    String? clipPath,
+    Uint8List? pdfBytes,
+  }) async {
+    if (_state.outcome == null || firestoreService == null) return;
     try {
-      await boaRepository!.submitResult({
-        'outcome': _state.outcome.toString(),
-        'trials': _state.trials.map((t) => {
-          'level': t.dbLevel.label,
-          'frequency': t.frequency.label,
-          'response': t.response.label,
-          'isCatchTrial': t.isCatchTrial,
-          'aiConfidence': t.aiConfidence,
-        }).toList(),
-      });
+      // Stop video recording and get path
+      if (_cameraController != null && _cameraController!.value.isRecordingVideo) {
+        final file = await _cameraController!.stopVideoRecording();
+        recordedVideoPath = file.path;
+      } else if (_cameraController != null && _cameraController!.value.isStreamingImages) {
+        await _cameraController!.stopImageStream();
+      }
+
+      final trialsList = _state.trials.map((t) => BoaTrialData(
+        dbLevel: t.dbLevel == BoaDbLevel.db45 ? 45 : (t.dbLevel == BoaDbLevel.db70 ? 70 : 90),
+        freqHz: t.frequency == BoaFrequency.freq1kHz ? 1000 : (t.frequency == BoaFrequency.freq3kHz ? 3000 : 4000),
+        response: t.response == BoaResponse.responseDetected ? 'y' : (t.response == BoaResponse.noResponse ? 'n' : 'u'),
+        isCatch: t.isCatchTrial,
+        aiConf: t.aiConfidence,
+        aiType: t.aiDetection.name,
+        latencyMs: 0,
+      )).toList();
+
+      final screeningId = const Uuid().v4();
+
+      final urls = await firestoreService!.uploadScreeningMedia(
+        screeningId,
+        videoPath: recordedVideoPath,
+        pdfBytes: pdfBytes,
+      );
+
+      final screening = Screening(
+        screeningId: screeningId,
+        childId: childId,
+        conductedBy: conductedBy,
+        type: 'boa',
+        result: _state.outcome!.name,
+        date: DateTime.now(),
+        boaOutcome: _state.outcome!.name,
+        boaNoiseDb: _state.noiseLevel,
+        boaTrials: trialsList,
+        clipPath: clipPath,
+        videoUrl: urls['videoUrl'],
+        pdfUrl: urls['pdfUrl'],
+      );
+
+      await firestoreService!.submitScreening(screening);
     } catch (e) {
       debugPrint('[BoaCtrl] submitResult error: $e');
     }
@@ -529,6 +627,8 @@ class BoaController extends ChangeNotifier {
     _cancelProgressTimer();
     _cancelCooldownTimer();
     _cancelResponseWindowTimer();
+    _noiseTimer?.cancel();
+    _noiseTimer = null;
     _preCheckTimer?.cancel();
     _preCheckTimer = null;
   }

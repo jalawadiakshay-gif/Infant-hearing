@@ -1,3 +1,21 @@
 # Default ignored files
 /shelf/
 /workspace.xml
+firebase-service-account.json
+
+
+.gradle/
+.idea/
+local.properties
+build/
+app/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+*.iml
+
+google-services.json
+
+.DS_Store
+Thumbs.db

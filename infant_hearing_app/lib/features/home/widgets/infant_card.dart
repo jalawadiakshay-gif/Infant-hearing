@@ -5,11 +5,11 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/widgets/app_card.dart';
-import '../../baby/models/baby_model.dart';
+import '../../../data/models/v2/child.dart';
 import '../../questionnaire/providers/questionnaire_provider.dart';
 
 class InfantCard extends StatelessWidget {
-  final BabyModel baby;
+  final Child baby;
   const InfantCard({super.key, required this.baby});
 
   @override
@@ -60,15 +60,15 @@ class InfantCard extends StatelessWidget {
                   children: [
                     _chip('DOB: ${DateFormat('dd MMM yyyy').format(baby.dob)}'),
                     _chip(baby.gender),
-                    if (baby.nicuAdmission) _chip('NICU', isWarning: true),
+                    if (baby.riskNicu) _chip('NICU', isWarning: true),
                   ],
                 ),
               ],
             ),
           ),
 
-          // Risk badge
-          _buildRiskBadge(isComplete ? baby.riskLevel : 'Screening Pending', isComplete),
+          // Status badge
+          _buildRiskBadge(isComplete ? (baby.status ?? 'Unknown') : 'Screening Pending', isComplete),
         ],
       ),
     );

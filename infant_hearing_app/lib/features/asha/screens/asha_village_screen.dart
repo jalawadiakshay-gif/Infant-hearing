@@ -40,22 +40,29 @@ class AshaVillageScreen extends StatelessWidget {
                   separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.m),
                   itemBuilder: (context, index) {
                     final infant = infants[index];
-                    final infantId = infant['id'] as String? ?? '$index';
-                    return InfantListTileWidget(
-                      infant: infant,
-                      hasQuestionnaire:
-                          provider.questionnaireResultForInfant(infantId) !=
-                              null,
-                      hasBoaResult:
-                          provider.boaResultForInfant(infantId) != null,
-                      onTap: () => context.push(
-                        RouteConstants.ashaInfantDetail,
-                        extra: {
-                          'infant': infant,
-                          'village': village,
-                        },
-                      ),
-                    ).animate().fadeIn(delay: (index * 50).ms).slideY(begin: 0.1);
+                    final infantId = infant.childId;
+                    return FutureBuilder(
+                      // Placeholder for actual lookup if needed, keeping UI consistent
+                      future: Future.wait([
+                         provider.questionnaireResultForInfant(infantId),
+                         provider.boaResultForInfant(infantId),
+                      ]),
+                      builder: (context, snapshot) {
+                        final results = snapshot.data ?? [null, null];
+                        return InfantListTileWidget(
+                          infant: infant,
+                          hasQuestionnaire: results[0] != null,
+                          hasBoaResult: results[1] != null,
+                          onTap: () => context.push(
+                            RouteConstants.ashaInfantDetail,
+                            extra: {
+                              'infant': infant,
+                              'village': village,
+                            },
+                          ),
+                        ).animate().fadeIn(delay: (index * 50).ms).slideY(begin: 0.1);
+                      }
+                    );
                   },
                 ),
         );
@@ -68,7 +75,7 @@ class AshaVillageScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.child_care_rounded, size: 64, color: AppColors.textHint.withOpacity(0.5)),
+          Icon(Icons.child_care_rounded, size: 64, color: AppColors.textHint.withValues(alpha: 0.5)),
           const SizedBox(height: AppSpacing.l),
           Text('No infants registered', style: AppTextStyles.h3),
           const SizedBox(height: AppSpacing.s),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:camera/camera.dart';
@@ -7,12 +8,12 @@ import 'package:infant_hearing_app/core/theme/app_colors.dart';
 import 'package:infant_hearing_app/core/theme/app_spacing.dart';
 import 'package:infant_hearing_app/core/theme/app_text_styles.dart';
 import 'package:infant_hearing_app/core/constants/route_constants.dart';
-import 'package:infant_hearing_app/core/localization/app_localizations.dart';
 import '../controllers/boa_controller.dart';
 import '../state/boa_state.dart';
 import '../../domain/boa_models.dart';
 import '../widgets/boa_response_buttons.dart';
 import '../widgets/boa_waveform_widget.dart';
+import '../../../baby/providers/baby_provider.dart';
 
 class BoaTestScreen extends StatefulWidget {
   const BoaTestScreen({super.key});
@@ -29,10 +30,19 @@ class _BoaTestScreenState extends State<BoaTestScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Force landscape lock so camera preview fills screen correctly
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
     ]);
+
+    // Fetch baby age for age-adaptive CV scoring
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final baby = context.read<BabyProvider>().baby;
+      if (baby != null) {
+        final ageMonths = DateTime.now().difference(baby.dob).inDays ~/ 30;
+        context.read<BoaController>().setInfantAge(ageMonths);
+      }
+    });
   }
 
   @override
@@ -102,6 +112,13 @@ class _BoaTestScreenState extends State<BoaTestScreen>
               child: _LightingBadge(),
             ),
 
+          // Layer 4b: Noise Floor Monitor
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 60,
+            right: AppSpacing.l,
+            child: _NoiseFloorBadge(noiseDb: state.noiseLevel),
+          ),
+
           // Layer 5: AI detection badge (during active trial only)
           if (state.aiDetection != AiDetectionType.none &&
               state.aiDetection != AiDetectionType.babyDetected &&
@@ -123,6 +140,14 @@ class _BoaTestScreenState extends State<BoaTestScreen>
               top: MediaQuery.of(context).padding.top + 68,
               left: AppSpacing.l,
               child: _CatchTrialBadge(),
+            ),
+
+          // Layer 6b: CV Debug Overlay (Debug Mode Only)
+          if (kDebugMode && state.isCameraInitialized)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 100,
+              right: AppSpacing.s,
+              child: _CvDebugOverlay(state: state),
             ),
 
           // Layer 7: Controls panel (bottom)
@@ -233,7 +258,7 @@ class _FaceGuideOverlay extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(ovalW / 2),
           border: Border.all(
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha: 0.5),
             width: 2,
           ),
         ),
@@ -252,13 +277,13 @@ class _PresenceOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black.withOpacity(0.72),
+      color: Colors.black.withValues(alpha: 0.72),
       child: Center(
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
           padding: const EdgeInsets.all(AppSpacing.xl),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.95),
+            color: Colors.white.withValues(alpha: 0.95),
             borderRadius: BorderRadius.circular(AppSpacing.radiusXL),
           ),
           child: Column(
@@ -312,22 +337,22 @@ class _AiDetectionBadge extends StatelessWidget {
 
     switch (type) {
       case AiDetectionType.eyeBlink:
-        label = 'Eye Response Detected';
+        label = 'Eye Response';
         color = AppColors.success;
         icon = Icons.visibility_rounded;
         break;
       case AiDetectionType.headTurn:
-        label = 'Head Turn Detected';
+        label = 'Head Turn';
         color = AppColors.primary;
         icon = Icons.rotate_90_degrees_cw_rounded;
         break;
       case AiDetectionType.moroReflex:
-        label = 'Startle/Moro Reflex';
+        label = 'Startle Reflex';
         color = Colors.orange;
         icon = Icons.bolt_rounded;
         break;
       case AiDetectionType.bodyMovement:
-        label = 'Movement Detected';
+        label = 'Movement';
         color = AppColors.secondary;
         icon = Icons.accessibility_new_rounded;
         break;
@@ -340,7 +365,7 @@ class _AiDetectionBadge extends StatelessWidget {
         padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.l, vertical: AppSpacing.s),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.92),
+          color: color.withValues(alpha: 0.95),
           borderRadius: BorderRadius.circular(AppSpacing.radiusXL),
           boxShadow: const [
             BoxShadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 3))
@@ -349,24 +374,67 @@ class _AiDetectionBadge extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: Colors.white, size: 18),
-            const SizedBox(width: AppSpacing.s),
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: AppSpacing.m),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(label,
-                    style: AppTextStyles.button
-                        .copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
-                if (strength != ResponseStrength.none)
-                  Text(strength.label,
-                      style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                Text('AI VERIFIED: $label',
+                    style: AppTextStyles.caption.copyWith(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 8,
+                        letterSpacing: 1.0)),
+                Text(strength.label,
+                    style: AppTextStyles.button.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14)),
               ],
             ),
           ],
         ),
       ),
     );
+  }
+}
+
+// ── Noise Floor Badge ────────────────────────────────────────────────────────
+
+class _NoiseFloorBadge extends StatelessWidget {
+  final double noiseDb;
+  const _NoiseFloorBadge({required this.noiseDb});
+
+  @override
+  Widget build(BuildContext context) {
+    final status = _getStatus();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black54,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: status.color.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.graphic_eq_rounded, color: status.color, size: 12),
+          const SizedBox(width: 4),
+          Text(
+            '${noiseDb.toStringAsFixed(0)} dB',
+            style: TextStyle(color: status.color, fontSize: 10, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  BoaNoiseStatus _getStatus() {
+    if (noiseDb < 35) return BoaNoiseStatus.ideal;
+    if (noiseDb < 45) return BoaNoiseStatus.acceptable;
+    if (noiseDb < 60) return BoaNoiseStatus.noisy;
+    return BoaNoiseStatus.invalid;
   }
 }
 
@@ -378,12 +446,12 @@ class _CatchTrialBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.xs),
       decoration: BoxDecoration(
-        color: Colors.purple.withOpacity(0.85),
+        color: Colors.purple.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(AppSpacing.radiusM),
       ),
-      child: Row(
+      child: const Row(
         mainAxisSize: MainAxisSize.min,
-        children: const [
+        children: [
           Icon(Icons.science_rounded, color: Colors.white, size: 12),
           SizedBox(width: 4),
           Text('CATCH TRIAL',
@@ -404,7 +472,7 @@ class _LightingBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.s),
       decoration: BoxDecoration(
-        color: Colors.amber.withOpacity(0.9),
+        color: Colors.amber.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(AppSpacing.radiusM),
       ),
       child: const Row(
@@ -446,7 +514,7 @@ class _ControlsPanel extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 16,
               spreadRadius: 2)
         ],
@@ -481,7 +549,7 @@ class _ControlsPanel extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(AppSpacing.s),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppSpacing.radiusM),
                 ),
                 child:
@@ -505,7 +573,7 @@ class _ControlsPanel extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.m, vertical: AppSpacing.xs),
                   decoration: BoxDecoration(
-                    color: AppColors.warning.withOpacity(0.1),
+                    color: AppColors.warning.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppSpacing.radiusM),
                   ),
                   child: Text(
@@ -530,9 +598,9 @@ class _ControlsPanel extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(AppSpacing.m),
               decoration: BoxDecoration(
-                color: AppColors.warning.withOpacity(0.08),
+                color: AppColors.warning.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(AppSpacing.radiusM),
-                border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+                border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
               ),
               child: Text(
                 state.statusOverride!,
@@ -573,7 +641,7 @@ class _ControlsPanel extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor: AppColors.primary.withOpacity(0.4),
+                  disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
                   shape: RoundedRectangleBorder(
                       borderRadius:
                           BorderRadius.circular(AppSpacing.radiusL)),
@@ -644,6 +712,16 @@ class _GuidanceBanner extends StatelessWidget {
           icon = Icons.emoji_emotions_outlined;
         }
         break;
+      case BoaTestPhase.baselineLearning:
+        msg = 'Calibrating behavior... Keep infant still';
+        color = AppColors.primary;
+        icon = Icons.analytics_outlined;
+        break;
+      case BoaTestPhase.noiseCheck:
+        msg = 'Checking ambient noise floor...';
+        color = AppColors.info;
+        icon = Icons.mic_external_on_rounded;
+        break;
       case BoaTestPhase.calibration:
         msg = 'Preparing stimulus — keep infant still...';
         color = AppColors.primary;
@@ -671,7 +749,7 @@ class _GuidanceBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.m, vertical: AppSpacing.s),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppSpacing.radiusM),
       ),
       child: Row(
@@ -706,7 +784,7 @@ class _TopBar extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Colors.black.withOpacity(0.75), Colors.transparent],
+          colors: [Colors.black.withValues(alpha: 0.75), Colors.transparent],
         ),
       ),
       child: Row(
@@ -758,6 +836,74 @@ class _TopBar extends StatelessWidget {
             },
             child: const Text('Restart'),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── CV Debug Overlay (Debug Mode Only) ────────────────────────────────────────
+
+class _CvDebugOverlay extends StatelessWidget {
+  final BoaState state;
+  const _CvDebugOverlay({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.cyan.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('CV PIPELINE DEBUG', style: TextStyle(color: Colors.cyan, fontSize: 10, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          _DebugRow('Face Visibility:', '${(state.presenceConfidence * 100).toInt()}%'),
+          _DebugRow('Pose Confidence:', '${(state.poseConfidence * 100).toInt()}%'),
+          _DebugRow('Motion Floor:', state.baselineMotion.toStringAsFixed(1)),
+          if (state.responseLatencyMs != null)
+            _DebugRow('Latency:', '${state.responseLatencyMs}ms', highlight: true),
+          if (state.cvExplanation != null && state.cvExplanation!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              state.cvExplanation!,
+              style: const TextStyle(color: Colors.amber, fontSize: 10, fontStyle: FontStyle.italic),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DebugRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool highlight;
+
+  const _DebugRow(this.label, this.value, {this.highlight = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+          const SizedBox(width: 8),
+          Text(value, style: TextStyle(
+            color: highlight ? Colors.amber : Colors.white,
+            fontSize: 10,
+            fontWeight: highlight ? FontWeight.bold : FontWeight.normal,
+          )),
         ],
       ),
     );

@@ -64,7 +64,7 @@ class HomeScreen extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(width: AppSpacing.s),
-                              _buildClinicalBadge(),
+                              _buildClinicalBadge(l10n),
                             ],
                           ),
                         ],
@@ -114,29 +114,29 @@ class HomeScreen extends StatelessWidget {
                   children: [
                     QuickActionTile(
                       icon: Icons.biotech_rounded,
-                      label: 'Screening',
-                      subtitle: 'Start Phase 1',
+                      label: l10n.screeningLabel,
+                      subtitle: l10n.startPhase1,
                       color: AppColors.primary,
                       onTap: () => context.push(RouteConstants.questionnaire),
                     ),
                     QuickActionTile(
                       icon: Icons.analytics_rounded,
-                      label: 'History',
-                      subtitle: 'Past Records',
+                      label: l10n.historyLabel,
+                      subtitle: l10n.pastRecordsShort,
                       color: AppColors.secondary,
                       onTap: () => context.push(RouteConstants.history),
                     ),
                     QuickActionTile(
                       icon: Icons.psychology_rounded,
-                      label: 'AI Assistant',
-                      subtitle: 'Chat Support',
+                      label: l10n.aiAssistant,
+                      subtitle: l10n.chatSupport,
                       color: AppColors.accent,
                       onTap: () => context.push(RouteConstants.chatbot),
                     ),
                     QuickActionTile(
                       icon: Icons.menu_book_rounded,
-                      label: 'Insights',
-                      subtitle: 'Resources',
+                      label: l10n.insightsLabel,
+                      subtitle: l10n.resourcesLabel,
                       color: AppColors.warning,
                       onTap: () => context.push(RouteConstants.medicalInsights),
                     ),
@@ -146,7 +146,7 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xl),
 
                 // ── Medical Insights Carousel ────────────────────────────────
-                Text('LATEST CLINICAL INSIGHTS', 
+                Text(l10n.latestInsights.toUpperCase(), 
                   style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w800, color: AppColors.textSecondary, letterSpacing: 1.2)),
                 const SizedBox(height: AppSpacing.m),
                 const AwarenessCarousel(),
@@ -160,7 +160,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildClinicalBadge() {
+  Widget _buildClinicalBadge(AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -169,7 +169,7 @@ class HomeScreen extends StatelessWidget {
         border: Border.all(color: AppColors.success.withValues(alpha: 0.2)),
       ),
       child: Text(
-        'CLINICAL',
+        l10n.clinicalBadge.toUpperCase(),
         style: AppTextStyles.caption.copyWith(
           color: AppColors.success,
           fontSize: 8,
@@ -219,7 +219,7 @@ class HomeScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Screening Status', style: AppTextStyles.subheading1.copyWith(fontWeight: FontWeight.bold)),
+              Text(l10n.screeningStatus, style: AppTextStyles.subheading1.copyWith(fontWeight: FontWeight.bold)),
               if (isComplete)
                 const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 20)
               else
@@ -239,8 +239,8 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(height: AppSpacing.m),
           Text(
             isComplete 
-              ? 'Phase 1 Complete. Review your results below.' 
-              : 'Complete the questionnaire to assess your baby\'s hearing health.',
+              ? l10n.phase1Complete 
+              : l10n.completeQuestionnaire,
             style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
           ),
         ],

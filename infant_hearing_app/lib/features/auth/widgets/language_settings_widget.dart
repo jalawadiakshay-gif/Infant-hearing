@@ -29,28 +29,32 @@ class LanguageSettingsWidget extends StatelessWidget {
                 ?.copyWith(fontWeight: FontWeight.w600),
           ),
         ),
-        ...AppLanguage.values.map(
-          (lang) => RadioListTile<AppLanguage>(
-            value: lang,
-            groupValue: langProvider.currentLanguage,
-            title: Text(lang.nativeName),
-            subtitle: Text(lang.englishName),
-            activeColor: Theme.of(context).colorScheme.primary,
-            onChanged: (selected) async {
-              if (selected == null) return;
-              final tts = context.read<TtsService>();
-              await langProvider.setLanguage(selected);
-              await tts.setLanguage(langProvider.ttsLocale);
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                        '${selected.nativeName} (${selected.englishName})'),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-              }
-            },
+        RadioGroup<AppLanguage>(
+          groupValue: langProvider.currentLanguage,
+          onChanged: (selected) async {
+            if (selected == null) return;
+            final tts = context.read<TtsService>();
+            await langProvider.setLanguage(selected);
+            await tts.setLanguage(langProvider.ttsLocale);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      '${selected.nativeName} (${selected.englishName})'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          },
+          child: Column(
+            children: AppLanguage.values.map(
+              (lang) => RadioListTile<AppLanguage>(
+                value: lang,
+                title: Text(lang.nativeName),
+                subtitle: Text(lang.englishName),
+                activeColor: Theme.of(context).colorScheme.primary,
+              ),
+            ).toList(),
           ),
         ),
       ],

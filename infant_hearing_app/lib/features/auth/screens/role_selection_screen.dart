@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:infant_hearing_app/core/constants/route_constants.dart';
+import 'package:infant_hearing_app/core/localization/app_localizations.dart';
+import 'package:infant_hearing_app/features/auth/widgets/language_settings_widget.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
@@ -8,8 +10,36 @@ class RoleSelectionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                builder: (ctx) => const SafeArea(
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                      child: LanguageSettingsWidget(),
+                    ),
+                  ),
+                ),
+              );
+            },
+            icon: Icon(Icons.language, color: theme.primaryColor),
+            label: Text(l10n.selectLanguage, style: TextStyle(color: theme.primaryColor)),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -18,7 +48,7 @@ class RoleSelectionScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Choose Your Role',
+                l10n.chooseYourRole,
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: theme.primaryColor,
@@ -27,14 +57,14 @@ class RoleSelectionScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Select how you will be using the app',
+                l10n.selectRoleSubtitle,
                 style: theme.textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 48),
               _RoleCard(
-                title: 'Parent',
-                description: 'Screen your baby and track their hearing health.',
+                title: l10n.roleParent,
+                description: l10n.roleParentDesc,
                 icon: Icons.family_restroom,
                 onTap: () {
                   context.go(RouteConstants.phoneLogin);
@@ -42,8 +72,8 @@ class RoleSelectionScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               _RoleCard(
-                title: 'ASHA Worker',
-                description: 'Support parents in screening and follow-ups.',
+                title: l10n.roleAshaWorker,
+                description: l10n.roleAshaWorkerDesc,
                 icon: Icons.support_agent,
                 onTap: () {
                   context.go(RouteConstants.ashaLogin);
@@ -62,14 +92,12 @@ class _RoleCard extends StatelessWidget {
   final String description;
   final IconData icon;
   final VoidCallback onTap;
-  final bool isDisabled;
 
   const _RoleCard({
     required this.title,
     required this.description,
     required this.icon,
     required this.onTap,
-    this.isDisabled = false,
   });
 
   @override
@@ -77,24 +105,24 @@ class _RoleCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return InkWell(
-      onTap: isDisabled ? null : onTap,
+      onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           border: Border.all(
-            color: isDisabled ? Colors.grey.shade300 : theme.primaryColor,
+            color: theme.primaryColor,
             width: 2,
           ),
           borderRadius: BorderRadius.circular(16),
-          color: isDisabled ? Colors.grey.shade100 : Colors.white,
+          color: Colors.white,
         ),
         child: Row(
           children: [
             Icon(
               icon,
               size: 48,
-              color: isDisabled ? Colors.grey : theme.primaryColor,
+              color: theme.primaryColor,
             ),
             const SizedBox(width: 20),
             Expanded(
@@ -105,14 +133,14 @@ class _RoleCard extends StatelessWidget {
                     title,
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: isDisabled ? Colors.grey : Colors.black87,
+                      color: Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     description,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: isDisabled ? Colors.grey : Colors.black54,
+                      color: Colors.black54,
                     ),
                   ),
                 ],

@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:lottie/lottie.dart';
 import 'package:go_router/go_router.dart';
 import 'package:infant_hearing_app/core/theme/app_colors.dart';
 import 'package:infant_hearing_app/core/theme/app_spacing.dart';
 import 'package:infant_hearing_app/core/theme/app_text_styles.dart';
 import 'package:infant_hearing_app/core/constants/route_constants.dart';
-import '../controllers/boa_controller.dart';
-import '../state/boa_state.dart';
-import '../../domain/boa_models.dart';
+import 'package:infant_hearing_app/core/localization/app_localizations.dart';
 
 class BoaWizardScreen extends StatefulWidget {
   const BoaWizardScreen({super.key});
@@ -23,10 +19,12 @@ class _BoaWizardScreenState extends State<BoaWizardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('BOA Clinical Wizard'),
+        title: Text(l10n.boaClinicalWizard),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
@@ -40,15 +38,15 @@ class _BoaWizardScreenState extends State<BoaWizardScreen> {
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
               children: [
-                _buildPrepStep(),
-                _buildPositioningStep(),
-                _buildTestingStep(),
+                _buildPrepStep(l10n),
+                _buildPositioningStep(l10n),
+                _buildTestingStep(l10n),
               ],
             ),
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomBar(),
+      bottomNavigationBar: _buildBottomBar(l10n),
     );
   }
 
@@ -73,31 +71,31 @@ class _BoaWizardScreenState extends State<BoaWizardScreen> {
     );
   }
 
-  Widget _buildPrepStep() {
+  Widget _buildPrepStep(AppLocalizations l10n) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.l),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Clinical Preparation', style: AppTextStyles.h2),
+          Text(l10n.clinicalPreparation, style: AppTextStyles.h2),
           const SizedBox(height: AppSpacing.s),
-          Text('Ensure the following conditions are met for an accurate test.', style: AppTextStyles.bodyMedium),
+          Text(l10n.ensureConditions, style: AppTextStyles.bodyMedium),
           const SizedBox(height: AppSpacing.xl),
-          _CheckTile(title: 'Quiet Environment', subtitle: 'Ambient noise < 40dB', icon: Icons.volume_off_rounded),
-          _CheckTile(title: 'Infant State', subtitle: 'Alert but calm/quiet', icon: Icons.child_care_rounded),
-          _CheckTile(title: 'Device Calibration', subtitle: 'Volume at 80%', icon: Icons.tune_rounded),
-          _CheckTile(title: 'Distraction Free', subtitle: 'No toys or bright lights', icon: Icons.visibility_off_rounded),
+          _CheckTile(title: l10n.quietEnvironment, subtitle: l10n.ambientNoise, icon: Icons.volume_off_rounded),
+          _CheckTile(title: l10n.infantStateLabel, subtitle: l10n.alertButCalm, icon: Icons.child_care_rounded),
+          _CheckTile(title: l10n.deviceCalibration, subtitle: l10n.volumeAt80, icon: Icons.tune_rounded),
+          _CheckTile(title: l10n.distractionFree, subtitle: l10n.noToysLights, icon: Icons.visibility_off_rounded),
         ],
       ),
     );
   }
 
-  Widget _buildPositioningStep() {
+  Widget _buildPositioningStep(AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.l),
       child: Column(
         children: [
-          Text('Infant Positioning', style: AppTextStyles.h2),
+          Text(l10n.infantPositioning, style: AppTextStyles.h2),
           const SizedBox(height: AppSpacing.xl),
           Expanded(
             child: Container(
@@ -105,21 +103,17 @@ class _BoaWizardScreenState extends State<BoaWizardScreen> {
                 color: Colors.black,
                 borderRadius: BorderRadius.circular(AppSpacing.radiusXL),
               ),
-              child: Stack(
+              child: const Stack(
                 alignment: Alignment.center,
                 children: [
-                  const Icon(Icons.face_retouching_natural_rounded, color: Colors.white24, size: 80),
-                  Lottie.network(
-                    'https://assets9.lottiefiles.com/packages/lf20_m6cu96.json', // Medical scan anim
-                    width: 200,
-                  ),
+                  Icon(Icons.face_retouching_natural_rounded, color: Colors.white, size: 120),
                 ],
               ),
             ),
           ),
           const SizedBox(height: AppSpacing.xl),
           Text(
-            'Place the infant facing away from the caregiver. Hold the device 12 inches from the ear.',
+            l10n.positionInstructions,
             style: AppTextStyles.bodyLarge,
             textAlign: TextAlign.center,
           ),
@@ -128,13 +122,13 @@ class _BoaWizardScreenState extends State<BoaWizardScreen> {
     );
   }
 
-  Widget _buildTestingStep() {
-    return const Center(
-      child: Text('Testing logic will go here (Connecting to BoaTestScreen)'),
+  Widget _buildTestingStep(AppLocalizations l10n) {
+    return Center(
+      child: Text(l10n.testComplete),
     );
   }
 
-  Widget _buildBottomBar() {
+  Widget _buildBottomBar(AppLocalizations l10n) {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.l),
@@ -147,7 +141,7 @@ class _BoaWizardScreenState extends State<BoaWizardScreen> {
               context.go(RouteConstants.boaTest);
             }
           },
-          child: Text(_currentStep == 2 ? 'Start Clinical Test' : 'Continue'),
+          child: Text(_currentStep == 2 ? l10n.startClinicalTest : l10n.continueButton),
         ),
       ),
     );

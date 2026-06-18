@@ -9,11 +9,56 @@ import '../../../core/localization/app_localizations.dart';
 import '../../../core/providers/language_provider.dart';
 import '../providers/questionnaire_provider.dart';
 import '../models/questionnaire_models.dart';
+import '../services/questionnaire_report_service.dart';
+import '../../baby/providers/baby_provider.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_card.dart';
+import '../../../shared/widgets/report_type_dialog.dart';
+import '../../auth/providers/auth_provider.dart';
 
 class QuestionnaireResultScreen extends StatelessWidget {
   const QuestionnaireResultScreen({super.key});
+
+  Future<void> _shareReport(BuildContext context, QuestionnaireProvider provider, AppLocalizations l10n, String langCode) async {
+    final auth = context.read<AuthProvider>();
+    final isAsha = auth.phoneNumber == null; // A heuristic: ASHA logs in with email
+
+    final selection = await ReportTypeSelectionDialog.show(context, isAshaDefault: isAsha);
+    if (selection == null || !context.mounted) return; // User cancelled
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final baby = context.read<BabyProvider>().baby;
+      final reportService = QuestionnaireReportService();
+      
+      await reportService.generateAndShareReport(
+        reportType: selection == ReportSelectionType.clinical ? ReportType.clinical : ReportType.parent,
+        babyName: baby?.name ?? 'Unknown',
+        age: baby?.ageMonths != null ? '${baby!.ageMonths} months' : 'N/A',
+        screeningId: 'Q-${DateTime.now().millisecondsSinceEpoch}',
+        result: provider.scoringResult!,
+        sections: provider.sections,
+        answers: provider.answers,
+        langCode: langCode,
+        l10n: l10n,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating report: $e')),
+        );
+      }
+    } finally {
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,8 +78,20 @@ class QuestionnaireResultScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
         title: Text(l10n.screeningResult, style: AppTextStyles.h3),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            provider.reset();
+            context.go(RouteConstants.mainLayout);
+          },
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            onPressed: () => _shareReport(context, provider, l10n, langCode),
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -44,7 +101,7 @@ class QuestionnaireResultScreen extends StatelessWidget {
             children: [
               // ── Result Hero Card ─────────────────────────────────────────
               AppCard(
-                color: resultColor.withOpacity(0.05),
+                color: resultColor.withValues(alpha: 0.05),
                 borderRadius: AppSpacing.radiusXL,
                 child: Column(
                   children: [
@@ -52,7 +109,7 @@ class QuestionnaireResultScreen extends StatelessWidget {
                       width: 72,
                       height: 72,
                       decoration: BoxDecoration(
-                        color: resultColor.withOpacity(0.1),
+                        color: resultColor.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(resultIcon, color: resultColor, size: 40),
@@ -86,7 +143,7 @@ class QuestionnaireResultScreen extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: result.riskPercentage / 100,
                         minHeight: 8,
-                        backgroundColor: resultColor.withOpacity(0.1),
+                        backgroundColor: resultColor.withValues(alpha: 0.1),
                         valueColor:
                             AlwaysStoppedAnimation<Color>(resultColor),
                       ),
@@ -152,9 +209,7 @@ class QuestionnaireResultScreen extends StatelessWidget {
               AppPrimaryButton(
                 label: l10n.downloadReport,
                 icon: Icons.download_rounded,
-                onPressed: () {
-                  // TODO(backend): PDF report generation
-                },
+                onPressed: () => _shareReport(context, provider, l10n, langCode),
               ),
 
               const SizedBox(height: AppSpacing.m),
@@ -232,9 +287,9 @@ class _BoaReferralBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.l),
       decoration: BoxDecoration(
-        color: AppColors.error.withOpacity(0.06),
+        color: AppColors.error.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(AppSpacing.radiusL),
-        border: Border.all(color: AppColors.error.withOpacity(0.4)),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -297,7 +352,7 @@ class _ScoreRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.s, vertical: 2),
             decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius:
                     BorderRadius.circular(AppSpacing.radiusS)),
             child: Text(value,
@@ -333,7 +388,7 @@ class _RiskLegend extends StatelessWidget {
             padding: const EdgeInsets.all(AppSpacing.s),
             decoration: BoxDecoration(
               color: isSelected
-                  ? item.color.withOpacity(0.1)
+                  ? item.color.withValues(alpha: 0.1)
                   : AppColors.surface,
               borderRadius:
                   BorderRadius.circular(AppSpacing.radiusM),

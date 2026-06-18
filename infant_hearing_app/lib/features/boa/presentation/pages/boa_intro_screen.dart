@@ -7,6 +7,7 @@ import 'package:infant_hearing_app/core/constants/route_constants.dart';
 import 'package:infant_hearing_app/core/localization/app_localizations.dart';
 import 'package:infant_hearing_app/shared/widgets/app_button.dart';
 import 'package:infant_hearing_app/shared/widgets/app_card.dart';
+import 'package:infant_hearing_app/shared/widgets/language_switcher.dart';
 
 class BoaIntroScreen extends StatelessWidget {
   const BoaIntroScreen({super.key});
@@ -22,6 +23,9 @@ class BoaIntroScreen extends StatelessWidget {
         leading: BackButton(
           onPressed: () => context.pop(),
         ),
+        actions: const [
+          LanguagePopupButton(),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -88,7 +92,7 @@ class _HeroHeader extends StatelessWidget {
           width: 60,
           height: 60,
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
+            color: AppColors.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(AppSpacing.radiusL),
           ),
           child: const Icon(Icons.hearing_rounded, color: AppColors.primary, size: 32),

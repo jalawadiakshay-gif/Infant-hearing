@@ -26,17 +26,21 @@ class LanguageSelectorList extends StatelessWidget {
             style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: AppColors.primary),
           ),
         ),
-        ...AppLanguage.values.map(
-          (lang) => RadioListTile<AppLanguage>(
-            value: lang,
-            groupValue: langProvider.language,
-            title: Text(lang.nativeName, style: AppTextStyles.subheading2.copyWith(fontWeight: FontWeight.bold)),
-            subtitle: Text(lang.englishName, style: AppTextStyles.caption),
-            activeColor: AppColors.primary,
-            onChanged: (selected) async {
-              if (selected == null) return;
-              await _applyLanguage(context, selected);
-            },
+        RadioGroup<AppLanguage>(
+          groupValue: langProvider.language,
+          onChanged: (selected) async {
+            if (selected == null) return;
+            await _applyLanguage(context, selected);
+          },
+          child: Column(
+            children: AppLanguage.values.map(
+              (lang) => RadioListTile<AppLanguage>(
+                value: lang,
+                title: Text(lang.nativeName, style: AppTextStyles.subheading2.copyWith(fontWeight: FontWeight.bold)),
+                subtitle: Text(lang.englishName, style: AppTextStyles.caption),
+                activeColor: AppColors.primary,
+              ),
+            ).toList(),
           ),
         ),
       ],
@@ -45,12 +49,14 @@ class LanguageSelectorList extends StatelessWidget {
 }
 
 class LanguagePopupButton extends StatelessWidget {
-  const LanguagePopupButton({super.key});
+  final Color? color;
+  const LanguagePopupButton({super.key, this.color});
 
   @override
   Widget build(BuildContext context) {
     final langProvider = context.watch<LanguageProvider>();
     final current = langProvider.language;
+    final effectiveColor = color ?? AppColors.primary;
 
     return PopupMenuButton<AppLanguage>(
       offset: const Offset(0, 45),
@@ -59,9 +65,9 @@ class LanguagePopupButton extends StatelessWidget {
       icon: Container(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s, vertical: 4),
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.primary.withOpacity(0.25)),
+          border: Border.all(color: effectiveColor.withValues(alpha: 0.25)),
           borderRadius: BorderRadius.circular(AppSpacing.radiusS),
-          color: AppColors.primaryLight.withOpacity(0.3),
+          color: effectiveColor.withValues(alpha: 0.1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -70,14 +76,14 @@ class LanguagePopupButton extends StatelessWidget {
             Text(
               current.code.toUpperCase(),
               style: AppTextStyles.button.copyWith(
-                color: AppColors.primary,
+                color: effectiveColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 0.5,
               ),
             ),
             const SizedBox(width: 3),
-            const Icon(Icons.keyboard_arrow_down_rounded, size: 15, color: AppColors.primary),
+            Icon(Icons.keyboard_arrow_down_rounded, size: 15, color: effectiveColor),
           ],
         ),
       ),

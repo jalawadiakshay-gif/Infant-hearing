@@ -5,7 +5,6 @@ import 'package:infant_hearing_app/core/theme/app_colors.dart';
 import 'package:infant_hearing_app/core/theme/app_spacing.dart';
 import 'package:infant_hearing_app/core/theme/app_text_styles.dart';
 import 'package:infant_hearing_app/core/constants/app_language.dart';
-import 'package:infant_hearing_app/core/constants/route_constants.dart';
 import 'package:infant_hearing_app/core/localization/app_localizations.dart';
 import 'package:infant_hearing_app/core/providers/language_provider.dart';
 import 'package:infant_hearing_app/core/services/tts_service.dart';

@@ -25,7 +25,7 @@ class AppDropdown<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       validator: validator,
       onChanged: onChanged,
       isExpanded: true,

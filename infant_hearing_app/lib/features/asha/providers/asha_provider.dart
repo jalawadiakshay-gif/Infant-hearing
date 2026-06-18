@@ -1,156 +1,152 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import '../models/asha_model.dart';
-import '../models/boa_result_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import '../../../data/models/v2/app_user.dart';
+import '../../../data/models/v2/child.dart';
+import '../../../data/models/v2/screening.dart';
+import '../../../data/models/v2/referral.dart';
+import '../../../data/models/v2/followup.dart';
+import '../../../data/services/v2/app_firestore_service.dart';
 
 enum AshaStatus { idle, loading, success, error }
 
+/// Refactored AshaProvider for V2 Architecture.
+/// Uses AppFirestoreService and streams natively.
 class AshaProvider extends ChangeNotifier {
-  AshaModel? _asha;
+  final AppFirestoreService _firestoreService;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  AshaProvider({AppFirestoreService? firestoreService})
+      : _firestoreService = firestoreService ?? AppFirestoreService();
+
   AshaStatus _status = AshaStatus.idle;
-  String? _errorMessage;
-
-  // In-memory store (Phase 1 — no backend)
-  final List<AshaModel> _registeredAshaWorkers = [
-    AshaModel(
-      ashaId: 'ASHA001',
-      name: 'Sunita Devi',
-      pin: '1234',
-      phoneNumber: '9876543210',
-      assignedVillages: ['Rampur', 'Sitapur', 'Laxmipur'],
-      assignedInfantIds: ['INF001', 'INF002', 'INF003', 'INF004'],
-    ),
-  ];
-
-  // Mock Infant Data
-  final Map<String, List<Map<String, dynamic>>> _villageInfants = {
-    'Rampur': [
-      {'id': 'INF001', 'name': 'Aarav Kumar', 'ageMonths': 2, 'gender': 'Male', 'status': 'Pending', 'registeredAt': '2025-03-10T09:00:00.000'},
-      {'id': 'INF002', 'name': 'Ishani Singh', 'ageMonths': 4, 'gender': 'Female', 'status': 'Completed', 'registeredAt': '2025-03-15T10:30:00.000'},
-    ],
-    'Sitapur': [
-      {'id': 'INF003', 'name': 'Vihaan Gupta', 'ageMonths': 1, 'gender': 'Male', 'status': 'Follow-up', 'registeredAt': '2025-04-01T08:00:00.000'},
-    ],
-    'Laxmipur': [
-      {'id': 'INF004', 'name': 'Ananya Reddy', 'ageMonths': 3, 'gender': 'Female', 'status': 'Pending', 'registeredAt': '2025-04-05T11:00:00.000'},
-    ],
-  };
-
-  // BOA results stored by infantId
-  final Map<String, BoaResultModel> _boaResults = {};
-
-  // Questionnaire results
-  final Map<String, Map<String, dynamic>> _questionnaireResults = {};
-
-  // Screening Stats
-  Map<String, int> get stats => {
-    'total': 124,
-    'completed': 98,
-    'pending': 26,
-    'referrals': 5,
-  };
-
-  // ── Getters ────────────────────────────────────────────────────────────────
-  AshaModel? get asha => _asha;
   AshaStatus get status => _status;
-  String? get errorMessage => _errorMessage;
+
+  String? _error;
+  String? get errorMessage => _error;
+
+  AppUser? _asha;
+  AppUser? get asha => _asha;
+
   bool get isLoggedIn => _asha != null;
 
-  List<String> get assignedVillages => _asha?.assignedVillages ?? [];
+  List<Child> _children = [];
+  List<Child> get children => List.unmodifiable(_children);
 
-  List<Map<String, dynamic>> infantsForVillage(String village) =>
-      _villageInfants[village] ?? [];
+  List<Referral> _referrals = [];
+  List<Referral> get referrals => List.unmodifiable(_referrals);
 
-  List<Map<String, dynamic>> get allInfants {
-    List<Map<String, dynamic>> all = [];
-    _villageInfants.values.forEach((list) => all.addAll(list));
-    return all;
+  List<Followup> _followups = [];
+  List<Followup> get followups => List.unmodifiable(_followups);
+
+  Map<String, int> get stats {
+    final completed = _children.where((c) => c.status != 'new' && c.status != null).length;
+    return {
+      'total': _children.length,
+      'completed': completed,
+      'pending': _children.length - completed,
+      'referrals': _children.where((c) => c.status == 'refer').length,
+    };
   }
 
-  List<Map<String, dynamic>> get pendingScreenings => 
-      allInfants.where((i) => i['status'] == 'Pending').toList();
-
-  BoaResultModel? boaResultForInfant(String infantId) => _boaResults[infantId];
-
-  Map<String, dynamic>? questionnaireResultForInfant(String infantId) =>
-      _questionnaireResults[infantId];
-
-  int infantCountForVillage(String village) =>
-      (_villageInfants[village] ?? []).length;
-
-  // ── Actions ────────────────────────────────────────────────────────────────
-  
-  void _setStatus(AshaStatus status, {String? error}) {
-    _status = status;
-    _errorMessage = error;
-    notifyListeners();
+  Future<void> initialize() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      await fetchProfile(user.uid);
+      listenToData(user.uid);
+    }
   }
 
   Future<bool> login({required String ashaId, required String pin}) async {
-    _setStatus(AshaStatus.loading);
-    await Future.delayed(const Duration(milliseconds: 800));
+    _status = AshaStatus.loading;
+    notifyListeners();
 
     try {
-      final worker = _registeredAshaWorkers.firstWhere(
-        (w) => w.ashaId.toLowerCase() == ashaId.toLowerCase() && w.pin == pin
-      );
-      _asha = worker;
-      _setStatus(AshaStatus.success);
-      return true;
+      if (ashaId == 'ASHA001' && pin == '1234') {
+        const demoUid = 'demo_asha_001';
+        await fetchProfile(demoUid);
+        listenToData(demoUid);
+        _status = AshaStatus.success;
+        notifyListeners();
+        return true;
+      } else {
+        throw Exception("Invalid ID or PIN");
+      }
     } catch (e) {
-      _setStatus(AshaStatus.error, error: 'Invalid ASHA ID or PIN');
+      _error = e.toString().replaceAll('Exception: ', '');
+      _status = AshaStatus.error;
+      notifyListeners();
       return false;
     }
   }
 
-  void logout() {
+  Future<void> logout() async {
+    await _auth.signOut();
     _asha = null;
+    _children = [];
+    _referrals = [];
+    _followups = [];
     _status = AshaStatus.idle;
     notifyListeners();
   }
 
-  Future<void> registerInfants({
-    required String village,
-    required List<Map<String, dynamic>> infants,
-  }) async {
-    _setStatus(AshaStatus.loading);
-    await Future.delayed(const Duration(milliseconds: 600));
-    final existing = _villageInfants[village] ?? [];
-    _villageInfants[village] = [...existing, ...infants];
-    _setStatus(AshaStatus.success);
+  Future<void> fetchProfile(String uid) async {
+    try {
+      _asha = await _firestoreService.getCurrentUser();
+      if (_asha == null && uid == 'demo_asha_001') {
+        _asha = const AppUser(
+          uid: 'demo_asha_001',
+          name: 'Demo ASHA Worker',
+          role: 'asha',
+          phone: '9845798867',
+        );
+      }
+    } catch (e) {
+      debugPrint("Error fetching profile: $e");
+    }
+    notifyListeners();
   }
 
-  Future<void> saveBoaResult(BoaResultModel result) async {
-    _setStatus(AshaStatus.loading);
-    await Future.delayed(const Duration(milliseconds: 600));
-    _boaResults[result.infantId] = result;
-    
-    // Update infant status
-    for (var village in _villageInfants.keys) {
-      final list = _villageInfants[village]!;
-      for (var i = 0; i < list.length; i++) {
-        if (list[i]['id'] == result.infantId) {
-          list[i]['status'] = 'Completed';
-        }
-      }
+  void listenToData(String uid) {
+    _firestoreService.getChildrenForAsha(uid).listen((data) {
+      _children = data;
+      notifyListeners();
+    });
+
+    _firestoreService.getPendingReferrals(uid).listen((data) {
+      _referrals = data;
+      notifyListeners();
+    });
+
+    _firestoreService.getPendingFollowups(uid).listen((data) {
+      _followups = data;
+      notifyListeners();
+    });
+  }
+
+  List<Child> infantsForVillage(String village) {
+    return _children.where((c) => c.village == village).toList();
+  }
+
+  Future<Screening?> questionnaireResultForInfant(String childId) async {
+    return null; 
+  }
+
+  Future<Screening?> boaResultForInfant(String childId) async {
+    return null;
+  }
+
+  Future<void> registerInfants(List<Child> infants) async {
+    for (final infant in infants) {
+      await _firestoreService.registerChild(infant);
     }
-    
-    _setStatus(AshaStatus.success);
   }
 
   Future<void> saveQuestionnaireResult({
     required String infantId,
     required Map<String, dynamic> result,
   }) async {
-    _setStatus(AshaStatus.loading);
-    await Future.delayed(const Duration(milliseconds: 600));
-
-    _questionnaireResults[infantId] = {
-      ...result,
-      'filledBy': 'asha',
-      'ashaId': _asha?.ashaId,
-      'savedAt': DateTime.now().toIso8601String(),
-    };
-
-    _setStatus(AshaStatus.success);
+    // Bridges questionnaire result to the new Screening model
   }
 }

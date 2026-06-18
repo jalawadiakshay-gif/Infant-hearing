@@ -34,7 +34,7 @@ enum BoaDbLevel {
     }
   }
 
-  String get label => '${value} dB HL';
+  String get label => '$value dB HL';
 
   String get clinicalNote {
     switch (this) {
@@ -76,14 +76,63 @@ enum BoaResponse {
 enum BoaTestPhase {
   idle,
   checklist,
-  calibration,   // Random pre-stimulus delay (1–3s)
+  noiseCheck,    // NEW: Real-time environmental analysis
   infantDetection,
   baselineLearning,
+  calibration,   // Keep for compatibility
   playing,       // Stimulus actively playing
   awaitingResponse, // Stimulus done, observing
   catchTrial,    // Silent trial
   complete;
 }
+
+// ── Noise Floor Status ───────────────────────────────────────────────────────
+enum BoaNoiseStatus {
+  ideal,      // <35 dB
+  acceptable, // 35-45 dB
+  noisy,      // >45 dB (warning)
+  invalid;    // >60 dB (test blocked)
+
+  String get label {
+    switch (this) {
+      case BoaNoiseStatus.ideal: return 'Ideal Quiet';
+      case BoaNoiseStatus.acceptable: return 'Acceptable';
+      case BoaNoiseStatus.noisy: return 'Noisy Background';
+      case BoaNoiseStatus.invalid: return 'Too Loud';
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case BoaNoiseStatus.ideal: return Colors.green;
+      case BoaNoiseStatus.acceptable: return Colors.blue;
+      case BoaNoiseStatus.noisy: return Colors.orange;
+      case BoaNoiseStatus.invalid: return Colors.red;
+    }
+  }
+}
+
+// ── Infant Age Groups for age-adaptive CV scoring ────────────────────────────
+enum BoaInfantAgeGroup {
+  neonatal,      // 0–3 months
+  earlyInfant,   // 3–6 months
+  olderInfant;   // 6–12 months
+
+  static BoaInfantAgeGroup fromMonths(int months) {
+    if (months <= 3) return BoaInfantAgeGroup.neonatal;
+    if (months <= 6) return BoaInfantAgeGroup.earlyInfant;
+    return BoaInfantAgeGroup.olderInfant;
+  }
+
+  String get label {
+    switch (this) {
+      case BoaInfantAgeGroup.neonatal:    return '0–3 months';
+      case BoaInfantAgeGroup.earlyInfant: return '3–6 months';
+      case BoaInfantAgeGroup.olderInfant: return '6–12 months';
+    }
+  }
+}
+
 
 // ── AI Detection Types ────────────────────────────────────────────────────────
 enum AiDetectionType {
@@ -95,7 +144,11 @@ enum AiDetectionType {
   moroReflex,
   bodyMovement,
   suckingChange,
-  positionBaby;
+  positionBaby,
+  freezing,
+  alerting,
+  armExtension,
+  cryChange;
 }
 
 // ── Response confidence classification ───────────────────────────────────────
@@ -167,6 +220,9 @@ class BoaTrial {
   final bool isCatchTrial;
   final double aiConfidence;
   final AiDetectionType aiDetection;
+  final double noiseDb;        // Env noise during trial
+  final double reliability;    // SNR of the response vs baseline
+  final String? cvExplanation; // NEW: Human-readable CV reasoning
 
   const BoaTrial({
     required this.dbLevel,
@@ -176,6 +232,9 @@ class BoaTrial {
     this.isCatchTrial = false,
     this.aiConfidence = 0.0,
     this.aiDetection = AiDetectionType.none,
+    this.noiseDb = 0.0,
+    this.reliability = 0.0,
+    this.cvExplanation,
   });
 }
 
@@ -194,4 +253,66 @@ class BoaChecklistItem {
     this.icon,
     this.isChecked = false,
   });
+}
+
+// ── CV Signal Scores (per-signal breakdown) ───────────────────────────────────
+class CvSignalScores {
+  final double headTurn;
+  final double eyeChange;
+  final double bodyMovement;
+  final double moroReflex;
+  final double freezing;
+  final double timing;
+
+  const CvSignalScores({
+    this.headTurn = 0.0,
+    this.eyeChange = 0.0,
+    this.bodyMovement = 0.0,
+    this.moroReflex = 0.0,
+    this.freezing = 0.0,
+    this.timing = 0.0,
+  });
+
+  Map<String, double> toMap() => {
+    'headTurn': headTurn,
+    'eyeChange': eyeChange,
+    'bodyMovement': bodyMovement,
+    'moroReflex': moroReflex,
+    'freezing': freezing,
+    'timing': timing,
+  };
+}
+
+// ── CV Explanation (human-readable per-trial output) ──────────────────────────
+class CvExplanation {
+  final String primaryBehavior;
+  final int latencyMs;
+  final double confidence;
+  final String qualityNote;
+  final List<AiDetectionType> detectedBehaviors;
+  final List<String> warnings;
+  final CvSignalScores signalScores;
+
+  const CvExplanation({
+    required this.primaryBehavior,
+    required this.latencyMs,
+    required this.confidence,
+    this.qualityNote = '',
+    this.detectedBehaviors = const [],
+    this.warnings = const [],
+    this.signalScores = const CvSignalScores(),
+  });
+
+  String toDisplayString() {
+    if (confidence < 0.1) return 'No behavioral change detected within response window.';
+    return '$primaryBehavior detected ${latencyMs}ms after stimulus. '
+        'Confidence: ${(confidence * 100).toInt()}%. '
+        '$qualityNote';
+  }
+
+  static CvExplanation empty() => const CvExplanation(
+    primaryBehavior: 'None',
+    latencyMs: 0,
+    confidence: 0.0,
+  );
 }

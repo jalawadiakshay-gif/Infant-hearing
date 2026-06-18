@@ -47,7 +47,7 @@ class _QuestionCardState extends State<QuestionCard> {
                 width: 24,
                 height: 24,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
@@ -220,7 +220,7 @@ class _AnswerChip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.s),
           decoration: BoxDecoration(
             color: isSelected
-                ? activeColor.withOpacity(0.1)
+                ? activeColor.withValues(alpha: 0.1)
                 : AppColors.surface,
             borderRadius: BorderRadius.circular(AppSpacing.radiusS),
             border: Border.all(

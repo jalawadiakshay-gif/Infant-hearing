@@ -1,3 +1,5 @@
+import 'package:infant_hearing_app/core/localization/app_localizations.dart';
+
 enum AnswerValue { yes, partial, no, unanswered }
 
 extension AnswerValueExtension on AnswerValue {
@@ -22,6 +24,19 @@ extension AnswerValueExtension on AnswerValue {
         return 'Partial';
       case AnswerValue.no:
         return 'No';
+      case AnswerValue.unanswered:
+        return '';
+    }
+  }
+
+  String localizedLabel(AppLocalizations l10n) {
+    switch (this) {
+      case AnswerValue.yes:
+        return l10n.yes;
+      case AnswerValue.partial:
+        return l10n.pdfPartialLabel;
+      case AnswerValue.no:
+        return l10n.no;
       case AnswerValue.unanswered:
         return '';
     }

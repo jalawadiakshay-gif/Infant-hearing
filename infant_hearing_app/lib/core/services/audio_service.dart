@@ -24,14 +24,14 @@ class AudioService {
     
     await _audioPlayer.setAudioContext(
       AudioContext(
-        android: AudioContextAndroid(
+        android: const AudioContextAndroid(
           usageType: AndroidUsageType.media,
           contentType: AndroidContentType.music,
           audioFocus: AndroidAudioFocus.gainTransientExclusive, // Exclusive focus for clinical accuracy
         ),
         iOS: AudioContextIOS(
           category: AVAudioSessionCategory.playback,
-          options: {
+          options: const {
             AVAudioSessionOptions.defaultToSpeaker,
           },
         ),

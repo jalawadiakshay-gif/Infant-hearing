@@ -47,4 +47,11 @@ abstract class RouteConstants {
   static const String ashaInfantDetail    = '/asha-infant-detail';
   static const String ashaBatchRegistration = '/asha-batch-registration';
   static const String ashaBoaTest         = '/asha-boa-test';
+  static const String ashaChildRegistration = '/asha-child-registration';
+  static const String ashaScreeningHistory  = '/asha-screening-history';
+  static const String ashaReferralManagement = '/asha-referral-management';
+  static const String ashaFollowups         = '/asha-followups';
+  static const String ashaNotifications     = '/asha-notifications';
+  static const String ashaChildReport       = '/asha-child-report';
+  static const String ashaAshaReport        = '/asha-report';
 }

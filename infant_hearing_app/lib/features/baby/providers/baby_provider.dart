@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
-import '../models/baby_model.dart';
-import '../../../shared/repositories/baby_repository.dart';
+import '../../../data/models/v2/child.dart';
+import '../../../data/services/v2/app_firestore_service.dart';
 
 class BabyProvider extends ChangeNotifier {
-  final BabyRepository babyRepository;
+  final AppFirestoreService firestoreService;
 
-  List<BabyModel> _children = [];
+  List<Child> _children = [];
   int _selectedBabyIndex = 0;
   bool _isSaving = false;
 
-  BabyProvider({required this.babyRepository});
+  BabyProvider({required this.firestoreService});
 
-  List<BabyModel> get babies => _children;
-  BabyModel? get baby =>
-      _children.isNotEmpty ? _children[_selectedBabyIndex] : null;
+  List<Child> get babies => _children;
+  Child? get baby =>
+      _children.isNotEmpty && _selectedBabyIndex < _children.length
+          ? _children[_selectedBabyIndex]
+          : null;
   bool get isSaving => _isSaving;
   bool get hasBabyData => _children.isNotEmpty;
   bool get hasChildren => _children.isNotEmpty;
@@ -28,46 +30,63 @@ class BabyProvider extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  Future<void> fetchBabies() async {
+  // Stream subscription for children
+  void startListeningToChildren(String userUid) {
     _errorMessage = null;
-    try {
-      _children = await babyRepository.getBabies();
-      notifyListeners();
-    } catch (e) {
-      _errorMessage = e.toString();
-      notifyListeners();
-    }
+    firestoreService.getChildrenForAsha(userUid).listen(
+      (children) {
+        _children = children;
+        notifyListeners();
+      },
+      onError: (e) {
+        _errorMessage = e.toString();
+        notifyListeners();
+      },
+    );
   }
 
   Future<bool> saveBaby({
     required String name,
     required DateTime dob,
     required String gender,
-    required double birthWeight,
-    required int gestationalAge,
+    required String parentName,
+    required String parentPhone,
+    required String createdBy,
     required bool nicuAdmission,
-    required String deliveryMode,
-    String? medicalNotes,
+    double? birthWeight,
+    int? gestationalAge,
+    String? birthType,
+    int? nicuDuration,
+    String? hospitalName,
+    String? pediatricianName,
+    String? hearingScreeningStatus,
   }) async {
     _isSaving = true;
     _errorMessage = null;
     notifyListeners();
 
-    final newBaby = BabyModel(
+    final newChild = Child(
+      childId: '',
       name: name,
       dob: dob,
       gender: gender,
+      parentName: parentName,
+      parentPhone: parentPhone,
+      createdBy: createdBy,
+      riskNicu: nicuAdmission,
       birthWeight: birthWeight,
       gestationalAge: gestationalAge,
-      nicuAdmission: nicuAdmission,
-      deliveryMode: deliveryMode,
-      medicalNotes: medicalNotes,
+      birthType: birthType,
+      nicuDuration: nicuDuration,
+      hospitalName: hospitalName,
+      pediatricianName: pediatricianName,
+      hearingScreeningStatus: hearingScreeningStatus,
     );
 
     try {
-      final savedBaby = await babyRepository.createBaby(newBaby);
-      _children.add(savedBaby);
-      _selectedBabyIndex = _children.length - 1;
+      final childId = await firestoreService.registerChild(newChild);
+      // Optimistically add to list so router's hasChildren check passes immediately
+      _children.add(newChild.copyWith(childId: childId));
       return true;
     } catch (e) {
       _errorMessage = e.toString();

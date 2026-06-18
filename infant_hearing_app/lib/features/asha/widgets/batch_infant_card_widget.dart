@@ -37,10 +37,10 @@ class BatchInfantCardWidget extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 14,
-                backgroundColor: AppColors.primary.withOpacity(0.12),
+                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
                 child: Text(
                   '${index + 1}',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
@@ -59,7 +59,7 @@ class BatchInfantCardWidget extends StatelessWidget {
               if (index > 0)
                 GestureDetector(
                   onTap: onRemove,
-                  child: Icon(Icons.close,
+                  child: const Icon(Icons.close,
                       size: 18, color: AppColors.textSecondary),
                 ),
             ],
@@ -100,7 +100,7 @@ class BatchInfantCardWidget extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: selectedGender.isEmpty ? null : selectedGender,
+                  initialValue: selectedGender.isEmpty ? null : selectedGender,
                   decoration: InputDecoration(
                     labelText: 'Gender',
                     border: OutlineInputBorder(
@@ -112,7 +112,6 @@ class BatchInfantCardWidget extends StatelessWidget {
                   items: const [
                     DropdownMenuItem(value: 'Male', child: Text('Male')),
                     DropdownMenuItem(value: 'Female', child: Text('Female')),
-                    DropdownMenuItem(value: 'Other', child: Text('Other')),
                   ],
                   onChanged: onGenderChanged,
                   validator: (v) =>

@@ -29,10 +29,10 @@ class VillageTileWidget extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(Icons.location_on_outlined,
+              child: const Icon(Icons.location_on_outlined,
                   color: AppColors.primary, size: 20),
             ),
             const SizedBox(width: 14),
@@ -50,7 +50,7 @@ class VillageTileWidget extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     '$infantCount infant${infantCount == 1 ? '' : 's'} registered',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 13,
                       color: AppColors.textSecondary,
                     ),
@@ -58,7 +58,7 @@ class VillageTileWidget extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: AppColors.textSecondary),
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
           ],
         ),
       ),

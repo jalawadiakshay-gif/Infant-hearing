@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:infant_hearing_app/core/theme/app_colors.dart';
+import '../../../data/models/v2/child.dart';
 
 class InfantListTileWidget extends StatelessWidget {
-  final Map<String, dynamic> infant;
+  final Child infant;
   final bool hasQuestionnaire;
   final bool hasBoaResult;
   final VoidCallback onTap;
@@ -17,9 +18,9 @@ class InfantListTileWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = infant['name'] as String? ?? 'Unnamed';
-    final ageMonths = infant['ageMonths'] as int? ?? 0;
-    final gender = infant['gender'] as String? ?? '';
+    final name = infant.name;
+    final ageMonths = infant.ageMonths;
+    final gender = infant.gender;
 
     return GestureDetector(
       onTap: onTap,
@@ -35,10 +36,10 @@ class InfantListTileWidget extends StatelessWidget {
             // Avatar
             CircleAvatar(
               radius: 22,
-              backgroundColor: AppColors.primary.withOpacity(0.12),
+              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
               child: Text(
-                name[0].toUpperCase(),
-                style: TextStyle(
+                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                style: const TextStyle(
                   color: AppColors.primary,
                   fontWeight: FontWeight.bold,
                 ),
@@ -61,7 +62,7 @@ class InfantListTileWidget extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     '$ageMonths months  •  $gender',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 13,
                       color: AppColors.textSecondary,
                     ),
@@ -81,7 +82,7 @@ class InfantListTileWidget extends StatelessWidget {
               ),
             ),
 
-            Icon(Icons.chevron_right, color: AppColors.textSecondary),
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
           ],
         ),
       ),
@@ -101,8 +102,8 @@ class _StatusChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: done
-            ? Colors.green.withOpacity(0.12)
-            : Colors.grey.withOpacity(0.12),
+            ? Colors.green.withValues(alpha: 0.12)
+            : Colors.grey.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(

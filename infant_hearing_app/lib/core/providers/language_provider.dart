@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:infant_hearing_app/core/constants/app_language.dart';
@@ -43,11 +42,7 @@ class LanguageProvider extends ChangeNotifier {
   }
 
   AppLanguage _getSystemAppLanguage() {
-    final systemLocale = PlatformDispatcher.instance.locale.languageCode;
-    return AppLanguage.values.firstWhere(
-      (l) => l.code == systemLocale,
-      orElse: () => AppLanguage.english,
-    );
+    return AppLanguage.english;
   }
 
   // ── Mutation ─────────────────────────────────────────────────────────────

@@ -18,21 +18,21 @@ class AwarenessCarousel extends StatelessWidget {
         title: l10n.earlyDetectionMatters,
         body: l10n.earlyDetectionDesc,
       ),
-      _AwarenessItem(
+      const _AwarenessItem(
         icon: Icons.warning_amber_rounded,
-        color: const Color(0xFFED6C02),
+        color: Color(0xFFED6C02),
         title: 'Know the Risk Factors',
         body: 'NICU admission, family history, and infections raise the risk.',
       ),
-      _AwarenessItem(
+      const _AwarenessItem(
         icon: Icons.check_circle_outline_rounded,
-        color: const Color(0xFF2E7D32),
+        color: Color(0xFF2E7D32),
         title: 'Hearing Milestones',
         body: 'By 6 months babies turn toward voices. By 12 months they say simple words.',
       ),
-      _AwarenessItem(
+      const _AwarenessItem(
         icon: Icons.hearing_rounded,
-        color: const Color(0xFF26A69A),
+        color: Color(0xFF26A69A),
         title: 'OAE & ABR Tests',
         body: 'Painless tests that measure how the ear responds to sound.',
       ),

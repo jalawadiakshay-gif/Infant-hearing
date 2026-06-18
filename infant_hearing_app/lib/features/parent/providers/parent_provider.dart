@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import '../models/parent_model.dart';
-import '../../../shared/repositories/parent_repository.dart';
+import '../../../data/models/v2/app_user.dart';
+import '../../../data/services/v2/app_firestore_service.dart';
 
 class ParentProvider extends ChangeNotifier {
-  final ParentRepository parentRepository;
+  final AppFirestoreService firestoreService;
 
-  ParentModel? _parent;
+  AppUser? _parent;
   bool _isSaving = false;
   bool _hasDeclared = false;
 
-  ParentProvider({required this.parentRepository});
+  ParentProvider({required this.firestoreService});
 
-  ParentModel? get parent => _parent;
+  AppUser? get parent => _parent;
   bool get isSaving => _isSaving;
   bool get hasParentData => _parent != null;
   bool get hasDeclared => _hasDeclared;
@@ -27,7 +27,7 @@ class ParentProvider extends ChangeNotifier {
   Future<void> fetchParent() async {
     _errorMessage = null;
     try {
-      _parent = await parentRepository.getParent();
+      _parent = await firestoreService.getCurrentUser();
       notifyListeners();
     } catch (e) {
       _errorMessage = e.toString();
@@ -35,13 +35,14 @@ class ParentProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> saveParent(ParentModel parent) async {
+  Future<bool> saveParent(AppUser parent) async {
     _isSaving = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _parent = await parentRepository.createParent(parent);
+      await firestoreService.saveUser(parent);
+      _parent = parent;
       return true;
     } catch (e) {
       _errorMessage = e.toString();

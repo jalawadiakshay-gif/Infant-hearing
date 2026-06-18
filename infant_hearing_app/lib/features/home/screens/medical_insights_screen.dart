@@ -3,7 +3,6 @@ import 'package:infant_hearing_app/core/theme/app_colors.dart';
 import 'package:infant_hearing_app/core/theme/app_spacing.dart';
 import 'package:infant_hearing_app/core/theme/app_text_styles.dart';
 import 'package:infant_hearing_app/core/localization/app_localizations.dart';
-import 'package:infant_hearing_app/features/home/widgets/awareness_carousel.dart';
 
 class MedicalInsightsScreen extends StatelessWidget {
   const MedicalInsightsScreen({super.key});
@@ -32,7 +31,7 @@ class MedicalInsightsScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xl),
             
-            _InsightSection(
+            const _InsightSection(
               title: 'Hearing Milestones',
               content: '0-3 Months: Startles to loud sounds.\n3-6 Months: Moves eyes toward sounds.\n6-12 Months: Turns head toward sound, responds to name.',
               icon: Icons.auto_graph_rounded,
@@ -40,7 +39,7 @@ class MedicalInsightsScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.l),
             
-            _InsightSection(
+            const _InsightSection(
               title: 'Clinical Screening',
               content: 'Early Hearing Detection and Intervention (EHDI) programs recommend screening by 1 month, diagnosis by 3 months, and intervention by 6 months.',
               icon: Icons.medical_services_rounded,
@@ -48,7 +47,7 @@ class MedicalInsightsScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.l),
             
-            _InsightSection(
+            const _InsightSection(
               title: 'Risk Factors',
               content: 'Low birth weight, premature birth, NICU stay, family history, and certain infections during pregnancy are common risk factors that require close monitoring.',
               icon: Icons.warning_rounded,
@@ -80,9 +79,9 @@ class _InsightSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.l),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
+        color: color.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(AppSpacing.radiusL),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

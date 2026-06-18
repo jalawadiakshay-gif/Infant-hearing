@@ -61,10 +61,10 @@ class _AshaLoginScreenState extends State<AshaLoginScreen> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
+                    color: AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Icon(Icons.badge_outlined,
+                  child: const Icon(Icons.badge_outlined,
                       size: 36, color: AppColors.primary),
                 ),
                 const SizedBox(height: 20),
@@ -138,7 +138,7 @@ class _AshaLoginScreenState extends State<AshaLoginScreen> {
                         padding: const EdgeInsets.only(top: 8, bottom: 4),
                         child: Text(
                           provider.errorMessage!,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: AppColors.error,
                             fontSize: 13,
                           ),
@@ -185,7 +185,6 @@ class _AshaLoginScreenState extends State<AshaLoginScreen> {
 
                 const SizedBox(height: 24),
 
-                // Demo hint
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -193,11 +192,11 @@ class _AshaLoginScreenState extends State<AshaLoginScreen> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppColors.border),
                   ),
-                  child: Row(
+                  child: const Row(
                     children: [
                       Icon(Icons.info_outline,
                           size: 16, color: AppColors.textSecondary),
-                      const SizedBox(width: 10),
+                      SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           'Demo: ID = ASHA001  •  PIN = 1234',

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "561253836819",
+    "project_id": "infant-hearing-app",
+    "storage_bucket": "infant-hearing-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:561253836819:android:dafbce380d76546deb37e6",
+        "android_client_info": {
+          "package_name": "com.example.infant_hearing_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBh1FNr1KRVjBZE5yOPMLt6-Z15H8SrZtM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
