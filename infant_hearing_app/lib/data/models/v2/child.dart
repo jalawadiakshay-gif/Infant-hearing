@@ -4,6 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// Replaces legacy BabyModel and ChildModel.
 class Child {
   final String childId;
+
+  /// Human-readable unique code shown to caregivers and ASHA workers.
+  /// Format: BSV-MH-YYMM-XXXX (e.g. BSV-MH-2608-4823)
+  final String? childCode;
+
   final String name;
   final DateTime dob;
   final String gender; // 'M', 'F', 'O'
@@ -43,6 +48,7 @@ class Child {
 
   const Child({
     required this.childId,
+    this.childCode,
     required this.name,
     required this.dob,
     required this.gender,
@@ -82,6 +88,7 @@ class Child {
 
     return Child(
       childId: doc.id,
+      childCode: data['childCode'] as String?,
       name: data['name'] ?? '',
       dob: (data['dob'] as Timestamp).toDate(),
       gender: data['gender'] ?? '',
@@ -117,6 +124,7 @@ class Child {
       'parentPhone': parentPhone,
       'village': village,
       'createdBy': createdBy,
+      if (childCode != null) 'childCode': childCode,
       'birthWeight': birthWeight,
       'gestationalAge': gestationalAge,
       'birthType': birthType,
@@ -146,6 +154,7 @@ class Child {
 
   Child copyWith({
     String? childId,
+    String? childCode,
     String? name,
     DateTime? dob,
     String? gender,
@@ -170,6 +179,7 @@ class Child {
   }) {
     return Child(
       childId: childId ?? this.childId,
+      childCode: childCode ?? this.childCode,
       name: name ?? this.name,
       dob: dob ?? this.dob,
       gender: gender ?? this.gender,
@@ -204,5 +214,5 @@ class Child {
   }
 
   @override
-  String toString() => 'Child(id: $childId, name: $name)';
+  String toString() => 'Child(id: $childId, code: $childCode, name: $name)';
 }

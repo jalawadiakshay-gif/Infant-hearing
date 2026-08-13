@@ -52,30 +52,34 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => onTap(intent),
-      borderRadius: BorderRadius.circular(AppSpacing.radiusXL),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l, vertical: AppSpacing.xs),
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(AppSpacing.radiusXL),
-          border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: AppColors.primary),
-            const SizedBox(width: AppSpacing.s),
-            Text(
-              label,
-              style: AppTextStyles.caption.copyWith(
-                fontWeight: FontWeight.w800,
-                color: AppColors.primary,
-                letterSpacing: 0.2,
+    return Semantics(
+      label: 'Quick action: $label',
+      button: true,
+      child: InkWell(
+        onTap: () => onTap(intent),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXL),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l, vertical: AppSpacing.xs),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusXL),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: AppColors.primary),
+              const SizedBox(width: AppSpacing.s),
+              Text(
+                label,
+                style: AppTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                  letterSpacing: 0.2,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

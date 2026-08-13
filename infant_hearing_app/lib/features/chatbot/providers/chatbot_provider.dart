@@ -66,7 +66,8 @@ class ChatbotProvider extends ChangeNotifier {
     _loading = true;
     notifyListeners();
 
-    final response = ChatbotKnowledgeBase.responseForIntent(intent, _language);
+    final rawResponse = ChatbotKnowledgeBase.responseForIntent(intent, _language);
+    final response = ChatbotKnowledgeBase.formatResponse(rawResponse, _language);
 
     _addMessage(ChatMessage(
       role: MessageRole.assistant,
@@ -85,35 +86,56 @@ class ChatbotProvider extends ChangeNotifier {
 
   // ── Internal: rule-based first, AI fallback ───────────────────────────────
   Future<String> _generateResponse(String input) async {
+    // 0. Domain Filter: Enforce child health / infant hearing scope only
+    if (!ChatbotKnowledgeBase.isChildHealthQuery(input)) {
+      return ChatbotKnowledgeBase.formatResponse(
+        ChatbotKnowledgeBase.nonHealthResponse(_language),
+        _language,
+      );
+    }
+
     // 1. Try rule-based
     final intent = ChatbotKnowledgeBase.detectIntent(input);
     if (intent != null) {
-      return ChatbotKnowledgeBase.responseForIntent(intent, _language);
+      return ChatbotKnowledgeBase.formatResponse(
+        ChatbotKnowledgeBase.responseForIntent(intent, _language),
+        _language,
+      );
     }
 
     // TEMP MOCK: Disable AI API call for frontend development if useMocks is enabled
     if (AppConfig.useMocks) {
       await Future.delayed(const Duration(seconds: 1));
-      return ChatbotKnowledgeBase.fallback(_language);
+      return ChatbotKnowledgeBase.formatResponse(
+        ChatbotKnowledgeBase.fallback(_language),
+        _language,
+      );
     }
 
     // 2. Try AI API
     if (_apiKey.isNotEmpty) {
       try {
-        return await _callApi(input);
+        final apiRes = await _callApi(input);
+        return ChatbotKnowledgeBase.formatResponse(apiRes, _language);
       } catch (e) {
         debugPrint('[Chatbot] API error: $e');
       }
     }
 
     // 3. Offline fallback
-    return ChatbotKnowledgeBase.fallback(_language);
+    return ChatbotKnowledgeBase.formatResponse(
+      ChatbotKnowledgeBase.fallback(_language),
+      _language,
+    );
   }
 
   Future<String> _callApi(String userInput) async {
     final systemPrompt = '''
 You are a helpful assistant for Baalshravya, an infant hearing screening app used in rural India.
 ${_languageInstruction()}
+CRITICAL RULE: You MUST ONLY answer questions related to infant hearing, child health, baby development milestones, screening tests (OAE, ABR, BOA), and ear care.
+If the user asks about ANYTHING unrelated to child health or hearing (such as general knowledge, coding, sports, politics, movies, or finance), you MUST politely refuse to answer and state: "I am a specialized child health and hearing screening assistant. I can only answer questions related to infant hearing and child health."
+
 Your role:
 - Answer questions about infant hearing loss, OAE, ABR, BOA tests.
 - Explain hearing milestones for babies 0–12 months.

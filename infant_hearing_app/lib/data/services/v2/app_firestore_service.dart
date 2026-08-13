@@ -58,13 +58,31 @@ class AppFirestoreService {
   Future<String> registerChild(Child child) async {
     // Generate UUID if not provided (idempotency for offline retries)
     final docId = child.childId.isEmpty ? _uuid.v4() : child.childId;
-    
-    final newChild = child.childId.isEmpty 
-        ? child.copyWith(childId: docId) 
-        : child;
+
+    // Generate a human-readable child code if not already set
+    // Format: BSV-MH-YYMM-XXXX  (e.g. BSV-MH-2608-4823)
+    final code = child.childCode?.isNotEmpty == true
+        ? child.childCode!
+        : _generateChildCode();
+
+    final newChild = child.copyWith(childId: docId, childCode: code);
 
     await _db.collection('children').doc(docId).set(newChild.toFirestore());
     return docId;
+  }
+
+  /// Generates a human-readable unique child code.
+  /// Format: BSV-MH-YYMM-XXXX
+  ///   BSV  = Baalshravya
+  ///   MH   = Maharashtra (state prefix)
+  ///   YYMM = 2-digit year + 2-digit month (e.g. 2608 for Aug 2026)
+  ///   XXXX = 4 random digits
+  String _generateChildCode() {
+    final now = DateTime.now();
+    final yy = now.year.toString().substring(2); // "26"
+    final mm = now.month.toString().padLeft(2, '0'); // "08"
+    final rand = (1000 + (now.microsecond % 9000)).toString().padLeft(4, '0');
+    return 'BSV-MH-$yy$mm-$rand';
   }
 
   /// Update child status/last screening after a screening

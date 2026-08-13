@@ -79,27 +79,31 @@ class _MicButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: isListening ? AppColors.error : AppColors.primary.withValues(alpha: 0.1),
-          boxShadow: isListening ? [
-            BoxShadow(
-              color: AppColors.error.withValues(alpha: 0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ] : null,
-        ),
-        child: Icon(
-          isListening ? Icons.stop : Icons.mic_none_rounded,
-          color: isListening ? Colors.white : AppColors.primary,
-          size: 20,
+    return Semantics(
+      label: isListening ? 'Stop voice recording' : 'Start voice recording',
+      button: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isListening ? AppColors.error : AppColors.primary.withValues(alpha: 0.1),
+            boxShadow: isListening ? [
+              BoxShadow(
+                color: AppColors.error.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ] : null,
+          ),
+          child: Icon(
+            isListening ? Icons.stop : Icons.mic_none_rounded,
+            color: isListening ? Colors.white : AppColors.primary,
+            size: 20,
+          ),
         ),
       ),
     );
@@ -112,23 +116,27 @@ class _SendButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: AppColors.primary,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
+    return Semantics(
+      label: 'Send message',
+      button: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.primary,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
         ),
-        child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
       ),
     );
   }

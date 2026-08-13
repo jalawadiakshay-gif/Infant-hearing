@@ -17,6 +17,7 @@ import '../../../shared/widgets/app_card.dart';
 import '../providers/baby_provider.dart';
 import '../../auth/providers/auth_provider.dart' as infant_auth;
 import '../../parent/providers/parent_provider.dart' as infant_parent;
+import 'package:firebase_auth/firebase_auth.dart';
 
 class BabyProfileScreen extends StatefulWidget {
   const BabyProfileScreen({super.key});
@@ -117,9 +118,11 @@ class _BabyProfileScreenState extends State<BabyProfileScreen> {
       return;
     }
 
-    final auth = context.read<infant_auth.AuthProvider>(); // Needs import 'package:infant_hearing_app/features/auth/providers/auth_provider.dart' as infant_auth;
+    final auth = context.read<infant_auth.AuthProvider>();
     final user = auth.currentUserProfile;
-    final parent = context.read<infant_parent.ParentProvider>().parent; // Needs import 'package:infant_hearing_app/features/parent/providers/parent_provider.dart' as infant_parent;
+    final parent = context.read<infant_parent.ParentProvider>().parent;
+    
+    final currentFirebaseUid = FirebaseAuth.instance.currentUser?.uid ?? 'Unknown';
     
     final success = await context.read<BabyProvider>().saveBaby(
           name: _nameController.text.trim(),
@@ -127,7 +130,7 @@ class _BabyProfileScreenState extends State<BabyProfileScreen> {
           gender: _selectedGender!,
           parentName: parent?.name ?? user?.name ?? 'Unknown',
           parentPhone: parent?.phone ?? user?.phone ?? 'Unknown',
-          createdBy: user?.uid ?? 'Unknown',
+          createdBy: user?.uid ?? currentFirebaseUid,
           nicuAdmission: _nicuAdmission,
           birthWeight: double.tryParse(_birthWeightController.text.trim()),
           gestationalAge: int.tryParse(_gestationalAgeController.text.trim()),

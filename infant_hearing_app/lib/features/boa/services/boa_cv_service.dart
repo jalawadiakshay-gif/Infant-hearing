@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import '../domain/boa_models.dart';
+import '../presentation/state/boa_state.dart' show CvFrameQuality;
 
 /// CV Analysis Result — enhanced with dual-pipeline outputs.
 class CvAnalysisResult {
@@ -159,6 +160,24 @@ class BoaCvService {
   // ── Frame counter for debug logging ────────────────────────────────────────
   int _frameCount = 0;
 
+  // ── Stale baseline tracking ────────────────────────────────────────────────
+  // Counts consecutive frames where NO face was detected.
+  // If this exceeds _staleThreshold, baseline is invalidated so a
+  // fresh calibration occurs when the baby returns to frame.
+  int _noFaceFrameCount = 0;
+  static const int _staleThreshold = 10; // ~2s at 5fps
+
+  // ── Smoothed eye buffer (5-frame rolling mean) ─────────────────────────────
+  // Reduces noise from single-frame MLKit mis-reads.
+  final List<double> _smoothedEyeBuffer = [];
+  static const int _eyeSmoothFrames = 5;
+
+  // ── Current frame quality ──────────────────────────────────────────────────
+  CvFrameQuality _frameQuality = CvFrameQuality.unknown;
+
+  /// Public getter so the controller can push quality into BoaState.
+  CvFrameQuality get frameQuality => _frameQuality;
+
   // ── Public API ─────────────────────────────────────────────────────────────
 
   /// Set infant age for age-adaptive scoring weights.
@@ -227,6 +246,7 @@ class BoaCvService {
     _armExtensionBuffer.clear();
     _bodyMotionBuffer.clear();
     _poseHistory.clear();
+    _smoothedEyeBuffer.clear();
     _baseline.isCalibrated = false;
     _baseline.calibrationFrames = 0;
     _baseline.headY = 0.0;
@@ -244,6 +264,8 @@ class BoaCvService {
     _lowMotionFrameCount = 0;
     _firstResponseLatencyMs = null;
     _frameCount = 0;
+    _noFaceFrameCount = 0;
+    _frameQuality = CvFrameQuality.unknown;
   }
 
   /// Main frame analysis method — runs both pipelines SEQUENTIALLY.
@@ -296,6 +318,17 @@ class BoaCvService {
 
     if (faces.isEmpty) {
       _bboxBuffer.clear();
+      // ── Stale baseline detection ──────────────────────────────────────────
+      _noFaceFrameCount++;
+      if (_noFaceFrameCount >= _staleThreshold && _baseline.isCalibrated) {
+        // Baby left frame long enough that the baseline is stale.
+        // Invalidate so we recalibrate when they return.
+        _baseline.isCalibrated = false;
+        _baseline.calibrationFrames = 0;
+        _smoothedEyeBuffer.clear();
+        debugPrint('[BoaCV] Baseline invalidated — baby was out of frame for $_noFaceFrameCount frames.');
+      }
+      _frameQuality = CvFrameQuality.poor;
       return CvAnalysisResult(
         babyPresent: false,
         presenceConfidence: 0,
@@ -304,6 +337,8 @@ class BoaCvService {
         brightness: _lastBrightness,
       );
     }
+    // Baby is back in frame — reset counter
+    _noFaceFrameCount = 0;
 
     // ── 3. Select infant face (multi-face handling) ───────────────────────
     final face = _selectInfantFace(faces, image.width, image.height);
@@ -323,12 +358,18 @@ class BoaCvService {
     // ── 5. Feature extraction (Pipeline A: Face) ──────────────────────────
     final leftEye = face.leftEyeOpenProbability ?? 0.5;
     final rightEye = face.rightEyeOpenProbability ?? 0.5;
-    final eyeOpenness = (leftEye + rightEye) / 2.0;
+    final rawEyeOpenness = (leftEye + rightEye) / 2.0;
+
+    // ── 5a. 5-frame smoothed eye openness (reduces single-frame MLKit noise) ─
+    _smoothedEyeBuffer.add(rawEyeOpenness);
+    if (_smoothedEyeBuffer.length > _eyeSmoothFrames) _smoothedEyeBuffer.removeAt(0);
+    final eyeOpenness = _smoothedEyeBuffer.reduce((a, b) => a + b) / _smoothedEyeBuffer.length;
+
     final motionMetric = _calculateMotionMetric(face);
     final headY = face.headEulerAngleY ?? 0.0;
     final headX = face.headEulerAngleX ?? 0.0;
 
-    // Track eye rate-of-change (blink detection)
+    // Track eye rate-of-change (blink detection uses SMOOTHED value)
     if (_eyeOpennessBuffer.isNotEmpty) {
       final prevEye = _eyeOpennessBuffer.last;
       final eyeRoc = (eyeOpenness - prevEye).abs();
@@ -341,6 +382,10 @@ class BoaCvService {
     _updateBuffer(_headXBuffer, headX);
     _bboxBuffer.add(face.boundingBox);
     if (_bboxBuffer.length > _bufferSize) _bboxBuffer.removeAt(0);
+
+    // ── 5b. Update frame quality rating ───────────────────────────────────
+    _frameQuality = _computeFrameQuality(presenceConf);
+    debugPrint('[BoaCV] Frame quality: $_frameQuality (presence=$presenceConf, brightness=$_lastBrightness)');
 
     // ── 6. Feature extraction (Pipeline B: Pose) ──────────────────────────
     double armExtension = 0.0;
@@ -998,6 +1043,14 @@ class BoaCvService {
       case AiDetectionType.armExtension: return 'Arm extension';
       default: return 'None';
     }
+  }
+
+  /// Compute an overall frame quality score from presence confidence + brightness.
+  CvFrameQuality _computeFrameQuality(double presenceConf) {
+    if (_lastBrightness < 30 || presenceConf < 0.20) return CvFrameQuality.poor;
+    if (presenceConf < 0.55 || _lastBrightness < 50) return CvFrameQuality.marginal;
+    if (_baseline.isCalibrated && presenceConf >= 0.55) return CvFrameQuality.good;
+    return CvFrameQuality.marginal;
   }
 
   Future<void> dispose() async {

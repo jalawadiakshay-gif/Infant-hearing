@@ -193,4 +193,69 @@ If you notice any of these signs, please complete the screening questionnaire im
 
   static String fallback(AppLanguage lang) =>
       _offlineFallback[lang.code] ?? _offlineFallback['en']!;
+
+  /// Mandatory medical disclaimer note appended to every response.
+  static String getDisclaimer(AppLanguage lang) {
+    switch (lang) {
+      case AppLanguage.hindi:
+        return '\n\nनोट: उपरोक्त जानकारी केवल संदर्भ के लिए है। कृपया व्यावसायिक चिकित्सा सलाह के लिए डॉक्टर से संपर्क करें या JNMC ऑडियोलॉजी विभाग में जाएं।';
+      case AppLanguage.marathi:
+        return '\n\nटीप: वरील माहिती केवळ संदर्भासाठी आहे. व्यावसायिक वैद्यकीय सल्ल्यासाठी कृपया डॉक्टरांशी संपर्क साधा किंवा JNMC ऑडिओलॉजी विभागाला भेट द्या.';
+      case AppLanguage.kannada:
+        return '\n\nಸೂಚನೆ: ಮೇಲಿನ ಮಾಹಿತಿಯು ಕೇವಲ ಉಲ್ಲೇಖಕ್ಕಾಗಿ ಮಾತ್ರ. ವೃತ್ತಿಪರ ವೈದ್ಯಕೀಯ ಸಲಹೆಗಾಗಿ ದಯವಿಟ್ಟು ವೈದ್ಯರನ್ನು ಸಂಪರ್ಕಿಸಿ ಅಥವಾ JNMC ಆಡಿಯಾಲಜಿ ವಿಭಾಗಕ್ಕೆ ಭೇಟಿ ನೀಡಿ.';
+      case AppLanguage.english:
+        return '\n\nNote: The above information is only for reference. Please contact a doctor or visit the JNMC Audiology department for professional medical advice.';
+    }
+  }
+
+  /// Appends the medical disclaimer note if not already present.
+  static String formatResponse(String response, AppLanguage lang) {
+    if (response.contains('Note: The above information') ||
+        response.contains('नोट: उपरोक्त जानकारी') ||
+        response.contains('ಸೂಚನೆ: ಮೇಲಿನ ಮಾಹಿತಿಯು') ||
+        response.contains('टीप: वरील माहिती')) {
+      return response;
+    }
+    return '$response${getDisclaimer(lang)}';
+  }
+
+  /// Refusal response when a query is out of domain (not related to child health or hearing).
+  static String nonHealthResponse(AppLanguage lang) {
+    switch (lang) {
+      case AppLanguage.hindi:
+        return 'मैं एक विशेषज्ञ शिशु श्रवण और बाल स्वास्थ्य सहायक हूँ। मैं केवल शिशु के सुनने की क्षमता, जांच परीक्षणों (OAE, ABR, BOA) और बाल विकास से संबंधित प्रश्नों के उत्तर दे सकता हूँ।';
+      case AppLanguage.marathi:
+        return 'मी एक विशेष शिशू श्रवण आणि बाल आरोग्य सहाय्यक आहे. मी फक्त बाळाची श्रवणशक्ती, तपासणी चाचण्या (OAE, ABR, BOA) आणि बाल विकासाशी संबंधित प्रश्नांची उत्तरे देऊ शकतो.';
+      case AppLanguage.kannada:
+        return 'ನಾನು ವಿಶೇಷ ಶಿಶು ಶ್ರವಣ ಮತ್ತು ಮಕ್ಕಳ ಆರೋಗ್ಯ ಸಹಾಯಕ. ನಾನು ಶಿಶು ಶ್ರವಣ ಸ್ಕ್ರೀನಿಂಗ್, ಕಿವಿ ಆರೈಕೆ ಮತ್ತು ಮಕ್ಕಳ ಬೆಳವणಿಗೆಗೆ ಸಂಬಂಧಿಸಿದ ಪ್ರಶ್ನೆಗಳಿಗೆ ಮಾತ್ರ ಉತ್ತರಿಸಬಲ್ಲೆ.';
+      case AppLanguage.english:
+        return 'I am a specialized child health and infant hearing assistant. I can only answer questions related to infant hearing screening, ear care, screening tests (OAE, ABR, BOA), and child development milestones.';
+    }
+  }
+
+  /// Validates if a free-text input is related to child health, hearing, or app usage.
+  static bool isChildHealthQuery(String input) {
+    final lower = input.trim().toLowerCase();
+    if (lower.isEmpty) return false;
+
+    // Direct match against known quick-action or keyword intents
+    if (detectIntent(input) != null) return true;
+
+    // Common health, baby, hearing, and screening keywords across supported languages
+    final healthKeywords = [
+      'hearing', 'ear', 'deaf', 'sound', 'noise', 'baby', 'infant', 'child', 'kid', 'newborn',
+      'test', 'screen', 'oae', 'abr', 'boa', 'jnmc', 'doctor', 'hospital', 'milestone',
+      'speech', 'speak', 'talk', 'listen', 'audiolog', 'report', 'result', 'pass', 'refer',
+      'risk', 'nicu', 'pain', 'infection', 'cry', 'crying', 'fever', 'health', 'care', 'clinic',
+      'help', 'app', 'baalshravya', 'soundstart', 'question', 'problem', 'symptom', 'age', 'month',
+      'कान', 'सुनने', 'बहरा', 'बच्चा', 'शिशु', 'आवाज', 'जांच', 'डॉक्टर', 'अस्पताल', 'बोलना', 'लक्षण', 'रिपोर्ट',
+      'ಕಿವಿ', 'ಶ್ರವಣ', 'ಮಗು', 'ಶಿಶು', 'ಶಬ್ದ', 'ವೈದ್ಯ', 'ಆಸ್ಪತ್ರೆ', 'ಲಕ್ಷಣ', 'ವರದಿ', 'ಪರೀಕ್ಷೆ',
+      'कान', 'ऐकणे', 'बहिरा', 'बाळ', 'शिशू', 'आवाज', 'तपासणी', 'डॉक्टर', 'रुग्णालय', 'लक्षणे', 'अहवाल',
+    ];
+
+    for (final kw in healthKeywords) {
+      if (lower.contains(kw)) return true;
+    }
+    return false;
+  }
 }

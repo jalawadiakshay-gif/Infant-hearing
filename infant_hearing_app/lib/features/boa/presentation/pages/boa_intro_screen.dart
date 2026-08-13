@@ -88,14 +88,13 @@ class _HeroHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(AppSpacing.radiusL),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusL),
+          child: Image.asset(
+            'assets/images/app_logo.png',
+            width: 60,
+            height: 60,
           ),
-          child: const Icon(Icons.hearing_rounded, color: AppColors.primary, size: 32),
         ),
         const SizedBox(height: AppSpacing.l),
         Text(l10n.boaTest, style: AppTextStyles.h1),

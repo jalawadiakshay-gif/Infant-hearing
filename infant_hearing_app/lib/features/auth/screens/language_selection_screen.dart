@@ -56,14 +56,13 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
             children: [
               const SizedBox(height: AppSpacing.xxl),
               Center(
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusXL),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusXL),
+                  child: Image.asset(
+                    'assets/images/app_logo.png',
+                    width: 80,
+                    height: 80,
                   ),
-                  child: const Icon(Icons.hearing_rounded, size: 48, color: Colors.white),
                 ),
               ),
               const SizedBox(height: AppSpacing.xxxl),

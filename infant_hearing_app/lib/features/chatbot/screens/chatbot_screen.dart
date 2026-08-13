@@ -167,14 +167,12 @@ class _ChatbotScreenState extends State<ChatbotScreen> with WidgetsBindingObserv
         centerTitle: false,
         title: Row(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+            ClipOval(
+              child: Image.asset(
+                'assets/images/app_logo.png',
+                width: 36,
+                height: 36,
               ),
-              child: const Icon(Icons.hearing_rounded, size: 20, color: AppColors.primary),
             ),
             const SizedBox(width: AppSpacing.s),
             Column(

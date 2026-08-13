@@ -74,6 +74,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  Future<void> _onRegisterWithGoogle() async {
+    if (_phoneController.text.trim().isEmpty || _phoneController.text.trim().length < 10) {
+      context.showSnackBar('Please enter your 10-digit phone number in the field below first.', isError: true);
+      FocusScope.of(context).requestFocus(_phoneFocus);
+      return;
+    }
+
+    final provider = context.read<AuthProvider>();
+    final success = await provider.registerWithGoogle(
+      phone: _phoneController.text.trim(),
+    );
+
+    if (!mounted) return;
+
+    if (success) {
+      context.showSnackBar('Google account registered! Please sign in.');
+      context.go(RouteConstants.phoneLogin);
+    } else {
+      context.showSnackBar(
+        provider.errorMessage ?? 'Google registration failed.',
+        isError: true,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLoading = context.select<AuthProvider, bool>(
@@ -108,7 +133,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   style: AppTextStyles.bodyMedium,
                 ),
 
-                const SizedBox(height: AppSpacing.xxxl),
+                const SizedBox(height: AppSpacing.xxl),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: isLoading ? null : _onRegisterWithGoogle,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: AppColors.border),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      backgroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.g_mobiledata_rounded, size: 32, color: Colors.blue),
+                    label: Text(
+                      'Register with Google',
+                      style: AppTextStyles.button.copyWith(color: AppColors.textPrimary),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Center(
+                  child: Text(
+                    '(Type phone number below first)',
+                    style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary, fontSize: 11),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.l),
+                Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
+                      child: Text('or register with email', style: AppTextStyles.caption),
+                    ),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.l),
 
                 _buildSectionLabel('PERSONAL INFORMATION'),
                 const SizedBox(height: AppSpacing.s),

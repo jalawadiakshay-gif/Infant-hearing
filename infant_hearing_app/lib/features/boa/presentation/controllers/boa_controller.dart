@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
+import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
@@ -49,7 +51,7 @@ class BoaController extends ChangeNotifier {
   // ── Timers ─────────────────────────────────────────────────────────────────
   Timer? _progressTimer;        // Drives playbackProgress UI bar
   Timer? _cooldownTimer;
-  Timer? _responseWindowTimer;  // Auto-close observation window
+  Timer? _responseWindowTimer;  // Auto-close observation window + countdown
   Timer? _preCheckTimer;        // Delayed initialization guard
   Timer? _noiseTimer;           // Simulate noise monitoring
 
@@ -57,7 +59,16 @@ class BoaController extends ChangeNotifier {
   CameraController? _cameraController;
   bool _isAiBusy = false;
   DateTime _lastFrameTime = DateTime(2000);
-  static const Duration _frameThrottle = Duration(milliseconds: 200); // 5fps
+
+  /// Adaptive frame throttle.
+  /// During active stimulus/response: 125ms (~8fps) for better detection.
+  /// Idle/calibration: 200ms (5fps) to save CPU.
+  Duration get _frameThrottle =>
+      (_state.phase == BoaTestPhase.playing ||
+          _state.phase == BoaTestPhase.awaitingResponse ||
+          _state.phase == BoaTestPhase.catchTrial)
+          ? const Duration(milliseconds: 125)
+          : const Duration(milliseconds: 200);
 
   // ── Misc ───────────────────────────────────────────────────────────────────
   final Random _random = Random();
@@ -230,6 +241,7 @@ class BoaController extends ChangeNotifier {
         detectedBehaviors: result.detectedBehaviors,
         cvExplanation: result.explanation.toDisplayString(),
         responseLatencyMs: result.responseLatencyMs,
+        cvFrameQuality: _cvService.frameQuality, // Push quality to UI
       );
       _safeNotify();
     } catch (e) {
@@ -289,6 +301,7 @@ class BoaController extends ChangeNotifier {
       playbackProgress: 0.0,
       isRecording: true,
       stimulusStartTime: DateTime.now(),
+      trialNumber: _state.trialNumber + (isCatch ? 0 : 1),
     );
     _safeNotify();
 
@@ -336,23 +349,33 @@ class BoaController extends ChangeNotifier {
       phase: BoaTestPhase.awaitingResponse,
       isRecording: false,
       playbackProgress: 1.0,
+      remainingResponseSeconds: 8,
     );
     _safeNotify();
 
-    // Auto-timeout: if caregiver doesn't respond in 8 seconds, return to idle
+    // Countdown timer: ticks every second from 8 → 0
+    int secondsLeft = 8;
     _cancelResponseWindowTimer();
-    _responseWindowTimer = Timer(const Duration(seconds: 8), () {
-      if (_disposed) return;
-      if (_state.phase == BoaTestPhase.awaitingResponse) {
-        debugPrint('[BoaCtrl] Response window timed out. Auto-advancing to idle.');
-        _cvService.onResponseWindowClose();
-        _state = _state.copyWith(
-          phase: BoaTestPhase.idle,
-          isRecording: false,
-          clearStimulusTime: true,
-          statusOverride: 'No response recorded. Tap to try again.',
-        );
-        _startCooldown();
+    _responseWindowTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_disposed) { timer.cancel(); return; }
+      secondsLeft--;
+      if (secondsLeft <= 0) {
+        timer.cancel();
+        if (_state.phase == BoaTestPhase.awaitingResponse) {
+          debugPrint('[BoaCtrl] Response window timed out. Auto-advancing to idle.');
+          _cvService.onResponseWindowClose();
+          _state = _state.copyWith(
+            phase: BoaTestPhase.idle,
+            isRecording: false,
+            clearStimulusTime: true,
+            statusOverride: 'No response recorded. Tap to try again.',
+            remainingResponseSeconds: 0,
+          );
+          _startCooldown();
+          _safeNotify();
+        }
+      } else {
+        _state = _state.copyWith(remainingResponseSeconds: secondsLeft);
         _safeNotify();
       }
     });
@@ -498,11 +521,18 @@ class BoaController extends ChangeNotifier {
     if (_state.outcome == null || firestoreService == null) return;
     try {
       // Stop video recording and get path
+      String? videoPath = _state.localVideoPath;
       if (_cameraController != null && _cameraController!.value.isRecordingVideo) {
         final file = await _cameraController!.stopVideoRecording();
+        videoPath = file.path;
         recordedVideoPath = file.path;
       } else if (_cameraController != null && _cameraController!.value.isStreamingImages) {
         await _cameraController!.stopImageStream();
+      }
+
+      // Save locally for ML training (always, regardless of upload success)
+      if (videoPath != null && videoPath.isNotEmpty) {
+        await _saveVideoLocally(videoPath, childId);
       }
 
       final trialsList = _state.trials.map((t) => BoaTrialData(
@@ -519,7 +549,7 @@ class BoaController extends ChangeNotifier {
 
       final urls = await firestoreService!.uploadScreeningMedia(
         screeningId,
-        videoPath: recordedVideoPath,
+        videoPath: videoPath,
         pdfBytes: pdfBytes,
       );
 
@@ -541,6 +571,23 @@ class BoaController extends ChangeNotifier {
       await firestoreService!.submitScreening(screening);
     } catch (e) {
       debugPrint('[BoaCtrl] submitResult error: $e');
+    }
+  }
+
+  /// Saves the BOA session video to device-local storage for ML training.
+  /// Stored at: <Documents>/BaalshravyaVideos/<childId>/<timestamp>.mp4
+  Future<void> _saveVideoLocally(String sourcePath, String childId) async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final folder = Directory('${dir.path}/BaalshravyaVideos/$childId');
+      if (!folder.existsSync()) folder.createSync(recursive: true);
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final dest = '${folder.path}/$ts.mp4';
+      await File(sourcePath).copy(dest);
+      _state = _state.copyWith(localVideoPath: dest);
+      debugPrint('[BoaCtrl] Video saved locally: $dest');
+    } catch (e) {
+      debugPrint('[BoaCtrl] Local video save error (non-fatal): $e');
     }
   }
 
@@ -589,6 +636,19 @@ class BoaController extends ChangeNotifier {
   Future<void> releaseResources() async {
     _cancelAllTimers();
     await _audioService.stop();
+    // Save video locally before disposing camera — preserves recording even on early exit
+    if (_cameraController != null && _cameraController!.value.isRecordingVideo) {
+      try {
+        final file = await _cameraController!.stopVideoRecording();
+        recordedVideoPath = file.path;
+        // Save for ML training even if user didn't submit
+        if (_state.localVideoPath == null) {
+          await _saveVideoLocally(file.path, 'unknown');
+        }
+      } catch (e) {
+        debugPrint('[BoaCtrl] releaseResources video stop error: $e');
+      }
+    }
     await _disposeCameraController();
     _cvService.reset();
     _state = _state.copyWith(isCameraInitialized: false, isRecording: false);

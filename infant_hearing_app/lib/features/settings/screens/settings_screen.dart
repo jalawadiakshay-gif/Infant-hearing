@@ -116,7 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             label: Text(l10n.logout, style: AppTextStyles.button.copyWith(color: AppColors.error)),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.m),
-              backgroundColor: AppColors.error.withValues(alpha: 0.05),
+              backgroundColor: AppColors.surfaceError,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusM)),
             ),
           ),

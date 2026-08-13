@@ -22,10 +22,10 @@ class AppColors {
   static const Color surfaceVariant = Color(0xFFF1F4F9);
   static const Color border = Color(0xFFE2E8F0);
 
-  // Text Colors: Optimized for Clinical Readability
+  // Text Colors: Optimized for Clinical Readability (WCAG 2.2 AA ≥4.5:1 compliant)
   static const Color textPrimary = Color(0xFF1E293B); // Slate 800
   static const Color textSecondary = Color(0xFF475569); // Slate 600
-  static const Color textHint = Color(0xFF94A3B8); // Slate 400
+  static const Color textHint = Color(0xFF64748B); // Slate 500 (4.5:1 contrast)
   static const Color textOnPrimary = Color(0xFFFFFFFF);
   static const Color textOnSecondary = Color(0xFFFFFFFF);
 
@@ -35,6 +35,12 @@ class AppColors {
   static const Color warning = Color(0xFFF59E0B); // Amber 500
   static const Color info = Color(0xFF3B82F6); // Blue 500
   static const Color scrim = Color(0x99000000); // 60% black
+
+  // Semantic Surface Tints (Replaces hardcoded .withValues(alpha:) magic numbers)
+  static const Color surfaceSuccess = Color(0xFFECFDF5); // Emerald 50
+  static const Color surfaceError = Color(0xFFFEF2F2); // Red 50
+  static const Color surfaceWarning = Color(0xFFFFFBEB); // Amber 50
+  static const Color surfaceInfo = Color(0xFFEFF6FF); // Blue 50
 
   // Gradients
   static const LinearGradient primaryGradient = LinearGradient(

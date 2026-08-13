@@ -90,10 +90,10 @@ class _BoaTestScreenState extends State<BoaTestScreen>
           // Layer 1: Camera preview (fills screen)
           _CameraLayer(controller: controller, state: state),
 
-          // Layer 2: Face alignment overlay (shown before test)
+          // Layer 2: Face alignment overlay with quality color
           if (state.isCameraInitialized &&
               state.phase != BoaTestPhase.complete)
-            const _FaceGuideOverlay(),
+            _FaceGuideOverlay(quality: state.cvFrameQuality),
 
           // Layer 3: Baby-not-detected overlay
           if (!state.isBabyPresent &&
@@ -119,6 +119,14 @@ class _BoaTestScreenState extends State<BoaTestScreen>
             child: _NoiseFloorBadge(noiseDb: state.noiseLevel),
           ),
 
+          // Layer 4c: CV Frame Quality indicator
+          if (state.isCameraInitialized)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 60,
+              left: AppSpacing.l,
+              child: _CvQualityDot(quality: state.cvFrameQuality),
+            ),
+
           // Layer 5: AI detection badge (during active trial only)
           if (state.aiDetection != AiDetectionType.none &&
               state.aiDetection != AiDetectionType.babyDetected &&
@@ -132,6 +140,16 @@ class _BoaTestScreenState extends State<BoaTestScreen>
                 type: state.aiDetection,
                 strength: state.responseStrength,
               ),
+            ),
+
+          // Layer 5b: Detected behavior chips (awaitingResponse)
+          if (state.phase == BoaTestPhase.awaitingResponse &&
+              state.detectedBehaviors.isNotEmpty)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 130,
+              left: AppSpacing.l,
+              right: AppSpacing.l,
+              child: _BehaviorChips(behaviors: state.detectedBehaviors),
             ),
 
           // Layer 6: Catch trial indicator
@@ -164,7 +182,7 @@ class _BoaTestScreenState extends State<BoaTestScreen>
             top: 0,
             left: 0,
             right: 0,
-            child: _TopBar(controller: controller),
+            child: _TopBar(controller: controller, state: state),
           ),
         ],
       ),
@@ -229,7 +247,6 @@ class _CameraLayer extends StatelessWidget {
       );
     }
 
-    // Use AspectRatio to prevent camera preview stretching
     return Center(
       child: AspectRatio(
         aspectRatio: 1 / cam.value.aspectRatio,
@@ -239,10 +256,20 @@ class _CameraLayer extends StatelessWidget {
   }
 }
 
-// ── Face Guide Overlay ────────────────────────────────────────────────────────
+// ── Face Guide Overlay (color changes with CV quality) ────────────────────────
 
 class _FaceGuideOverlay extends StatelessWidget {
-  const _FaceGuideOverlay();
+  final CvFrameQuality quality;
+  const _FaceGuideOverlay({required this.quality});
+
+  Color get _borderColor {
+    switch (quality) {
+      case CvFrameQuality.good:     return Colors.greenAccent;
+      case CvFrameQuality.marginal: return Colors.amber;
+      case CvFrameQuality.poor:     return Colors.redAccent.withValues(alpha: 0.7);
+      case CvFrameQuality.unknown:  return Colors.white.withValues(alpha: 0.5);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -252,15 +279,66 @@ class _FaceGuideOverlay extends StatelessWidget {
     return Positioned(
       top: size.height * 0.12,
       left: (size.width - ovalW) / 2,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 400),
         width: ovalW,
         height: ovalH,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(ovalW / 2),
           border: Border.all(
-            color: Colors.white.withValues(alpha: 0.5),
-            width: 2,
+            color: _borderColor,
+            width: quality == CvFrameQuality.good ? 3.0 : 2.0,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── CV Quality Dot ─────────────────────────────────────────────────────────────
+
+class _CvQualityDot extends StatelessWidget {
+  final CvFrameQuality quality;
+  const _CvQualityDot({required this.quality});
+
+  Color get _color {
+    switch (quality) {
+      case CvFrameQuality.good:     return Colors.greenAccent;
+      case CvFrameQuality.marginal: return Colors.amber;
+      case CvFrameQuality.poor:     return Colors.redAccent;
+      case CvFrameQuality.unknown:  return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: quality.label,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _color.withValues(alpha: 0.6)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: _color,
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: _color.withValues(alpha: 0.6), blurRadius: 4)],
+              ),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              'CV',
+              style: TextStyle(color: _color, fontSize: 9, fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
       ),
     );
@@ -356,6 +434,11 @@ class _AiDetectionBadge extends StatelessWidget {
         color = AppColors.secondary;
         icon = Icons.accessibility_new_rounded;
         break;
+      case AiDetectionType.freezing:
+        label = 'Freezing';
+        color = Colors.blueAccent;
+        icon = Icons.pause_circle_rounded;
+        break;
       default:
         return const SizedBox.shrink();
     }
@@ -397,6 +480,49 @@ class _AiDetectionBadge extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ── Behavior Chips (shown during awaitingResponse) ────────────────────────────
+
+class _BehaviorChips extends StatelessWidget {
+  final List<AiDetectionType> behaviors;
+  const _BehaviorChips({required this.behaviors});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      alignment: WrapAlignment.center,
+      children: behaviors.map((b) {
+        final (label, color) = _chipInfo(b);
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.85),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  (String, Color) _chipInfo(AiDetectionType t) {
+    switch (t) {
+      case AiDetectionType.eyeBlink:     return ('👁 Eye', AppColors.success);
+      case AiDetectionType.headTurn:     return ('↩ Head', AppColors.primary);
+      case AiDetectionType.moroReflex:   return ('⚡ Startle', Colors.orange);
+      case AiDetectionType.bodyMovement: return ('🤸 Body', AppColors.secondary);
+      case AiDetectionType.freezing:     return ('⏸ Freeze', Colors.blueAccent);
+      case AiDetectionType.armExtension: return ('💪 Arm', Colors.purple);
+      default:                           return ('• ${t.name}', Colors.grey);
+    }
   }
 }
 
@@ -543,6 +669,10 @@ class _ControlsPanel extends StatelessWidget {
             const SizedBox(height: AppSpacing.m),
           ],
 
+          // ── Countdown timer during observation window ──────────────────
+          if (isAwaiting)
+            _CountdownBanner(remainingSeconds: state.remainingResponseSeconds),
+
           // Level + frequency row
           Row(
             children: [
@@ -614,37 +744,42 @@ class _ControlsPanel extends StatelessWidget {
 
           // Play button
           if (state.canStartTrial || isCalibrating)
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton.icon(
-                onPressed: (state.isCooldownActive || isCalibrating)
-                    ? null
-                    : () => controller.startTrial(),
-                icon: isCalibrating
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : state.isCooldownActive
-                        ? const Icon(Icons.hourglass_top_rounded, size: 24)
-                        : const Icon(Icons.play_arrow_rounded, size: 28),
-                label: Text(
-                  isCalibrating
-                      ? 'Preparing stimulus...'
+            Semantics(
+              label: 'Emit ${state.currentFrequency.label} sound stimulus at ${state.currentDbLevel.label}',
+              button: true,
+              enabled: !(state.isCooldownActive || isCalibrating),
+              child: SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: (state.isCooldownActive || isCalibrating)
+                      ? null
+                      : () => controller.startTrial(),
+                  icon: isCalibrating
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
                       : state.isCooldownActive
-                          ? 'Wait...'
-                          : 'Play Sound Stimulus',
-                  style: AppTextStyles.button.copyWith(fontSize: 16),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
-                  shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.radiusL)),
+                          ? const Icon(Icons.hourglass_top_rounded, size: 24)
+                          : const Icon(Icons.play_arrow_rounded, size: 28),
+                  label: Text(
+                    isCalibrating
+                        ? 'Preparing stimulus...'
+                        : state.isCooldownActive
+                            ? 'Wait...'
+                            : 'Play Sound Stimulus',
+                    style: AppTextStyles.button.copyWith(fontSize: 16),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
+                    shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusL)),
+                  ),
                 ),
               ),
             ),
@@ -654,6 +789,61 @@ class _ControlsPanel extends StatelessWidget {
             const SizedBox(height: AppSpacing.m),
             BoaResponseButtons(onResponse: controller.recordResponse),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Countdown Banner ──────────────────────────────────────────────────────────
+
+class _CountdownBanner extends StatelessWidget {
+  final int remainingSeconds;
+  const _CountdownBanner({required this.remainingSeconds});
+
+  @override
+  Widget build(BuildContext context) {
+    final isUrgent = remainingSeconds <= 3;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: AppSpacing.m),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s, horizontal: AppSpacing.m),
+      decoration: BoxDecoration(
+        color: isUrgent
+            ? AppColors.error.withValues(alpha: 0.1)
+            : AppColors.warning.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusM),
+        border: Border.all(
+          color: isUrgent
+              ? AppColors.error.withValues(alpha: 0.4)
+              : AppColors.warning.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.timer_outlined,
+            color: isUrgent ? AppColors.error : AppColors.warning,
+            size: 18,
+          ),
+          const SizedBox(width: AppSpacing.s),
+          Expanded(
+            child: Text(
+              'Observe infant response',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: isUrgent ? AppColors.error : AppColors.warning,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 200),
+            style: AppTextStyles.h3.copyWith(
+              color: isUrgent ? AppColors.error : AppColors.warning,
+              fontSize: isUrgent ? 22 : 18,
+            ),
+            child: Text('${remainingSeconds}s'),
+          ),
         ],
       ),
     );
@@ -773,7 +963,8 @@ class _GuidanceBanner extends StatelessWidget {
 
 class _TopBar extends StatelessWidget {
   final BoaController controller;
-  const _TopBar({required this.controller});
+  final BoaState state;
+  const _TopBar({required this.controller, required this.state});
 
   @override
   Widget build(BuildContext context) {
@@ -789,7 +980,6 @@ class _TopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // FIX: Use context.pop() (GoRouter) not Navigator.pop()
           IconButton(
             icon: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
             onPressed: () {
@@ -798,12 +988,37 @@ class _TopBar extends StatelessWidget {
               });
             },
           ),
+          // Trial number indicator
+          if (state.trialNumber > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                'Trial ${state.trialNumber}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           Expanded(
             child: Text(
               'BOA Test',
               style: AppTextStyles.h3.copyWith(color: Colors.white),
             ),
           ),
+          // Recording indicator (red pulsing dot)
+          if (state.isRecording)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _RecordingDot(),
+            ),
           IconButton(
             icon: const Icon(Icons.flip_camera_ios_rounded, color: Colors.white),
             onPressed: controller.toggleCamera,
@@ -842,6 +1057,60 @@ class _TopBar extends StatelessWidget {
   }
 }
 
+// ── Recording Dot ─────────────────────────────────────────────────────────────
+
+class _RecordingDot extends StatefulWidget {
+  @override
+  State<_RecordingDot> createState() => _RecordingDotState();
+}
+
+class _RecordingDotState extends State<_RecordingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _anim;
+  late final Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+    _opacity = Tween<double>(begin: 0.3, end: 1.0).animate(_anim);
+  }
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacity,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: Colors.redAccent,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 4),
+          const Text(
+            'REC',
+            style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── CV Debug Overlay (Debug Mode Only) ────────────────────────────────────────
 
 class _CvDebugOverlay extends StatelessWidget {
@@ -863,9 +1132,11 @@ class _CvDebugOverlay extends StatelessWidget {
         children: [
           const Text('CV PIPELINE DEBUG', style: TextStyle(color: Colors.cyan, fontSize: 10, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
+          _DebugRow('Quality:', state.cvFrameQuality.label),
           _DebugRow('Face Visibility:', '${(state.presenceConfidence * 100).toInt()}%'),
           _DebugRow('Pose Confidence:', '${(state.poseConfidence * 100).toInt()}%'),
           _DebugRow('Motion Floor:', state.baselineMotion.toStringAsFixed(1)),
+          _DebugRow('Trial #:', '${state.trialNumber}'),
           if (state.responseLatencyMs != null)
             _DebugRow('Latency:', '${state.responseLatencyMs}ms', highlight: true),
           if (state.cvExplanation != null && state.cvExplanation!.isNotEmpty) ...[

@@ -1,30 +1,30 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:infant_hearing_app/app.dart';
+import 'package:infant_hearing_app/core/theme/app_colors.dart';
+import 'package:infant_hearing_app/features/auth/widgets/auth_header.dart';
+import 'package:infant_hearing_app/core/constants/app_strings.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const InfantHearingApp());
+  group('Design Tokens & Brand Accessibility Tests', () {
+    test('AppColors define standardized surface tokens', () {
+      expect(AppColors.surfaceSuccess, equals(const Color(0xFFECFDF5)));
+      expect(AppColors.surfaceError, equals(const Color(0xFFFEF2F2)));
+      expect(AppColors.surfaceWarning, equals(const Color(0xFFFFFBEB)));
+      expect(AppColors.surfaceInfo, equals(const Color(0xFFEFF6FF)));
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    testWidgets('AuthBrand renders logo and app strings correctly without errors', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: AuthBrand(),
+          ),
+        ),
+      );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+      expect(find.text(AppStrings.appName), findsOneWidget);
+      expect(find.text(AppStrings.appTagline), findsOneWidget);
+      expect(find.byType(Image), findsOneWidget);
+    });
   });
 }

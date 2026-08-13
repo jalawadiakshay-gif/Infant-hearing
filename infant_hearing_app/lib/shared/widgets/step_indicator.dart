@@ -54,11 +54,18 @@ class StepIndicator extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    stepLabels[index],
-                    style: AppTextStyles.caption.copyWith(
-                      fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                      color: isActive ? AppColors.primary : AppColors.textHint,
+                  Container(
+                    width: 80,
+                    alignment: Alignment.center,
+                    child: Text(
+                      stepLabels[index],
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.caption.copyWith(
+                        fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                        color: isActive ? AppColors.primary : AppColors.textHint,
+                      ),
                     ),
                   ),
                 ],

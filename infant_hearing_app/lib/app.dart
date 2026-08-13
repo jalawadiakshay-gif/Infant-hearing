@@ -51,6 +51,8 @@ class _InfantHearingAppState extends State<InfantHearingApp> {
             title: 'Baalshravya',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: ThemeMode.system,
             locale: langProvider.locale,
             supportedLocales: AppLocalizations.supportedLocales,
             localizationsDelegates: const [

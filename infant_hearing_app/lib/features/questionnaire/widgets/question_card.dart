@@ -80,7 +80,7 @@ class _QuestionCardState extends State<QuestionCard> {
                     AnswerValue.yes, langProvider.currentLanguage.code),
                 value: AnswerValue.yes,
                 selected: widget.selectedAnswer,
-                activeColor: AppColors.success,
+                activeColor: AppColors.primary,
                 onTap: widget.onAnswerSelected,
               ),
               const SizedBox(width: AppSpacing.s),
@@ -89,7 +89,7 @@ class _QuestionCardState extends State<QuestionCard> {
                     AnswerValue.partial, langProvider.currentLanguage.code),
                 value: AnswerValue.partial,
                 selected: widget.selectedAnswer,
-                activeColor: AppColors.warning,
+                activeColor: AppColors.primary,
                 onTap: widget.onAnswerSelected,
               ),
               const SizedBox(width: AppSpacing.s),
@@ -98,7 +98,7 @@ class _QuestionCardState extends State<QuestionCard> {
                     AnswerValue.no, langProvider.currentLanguage.code),
                 value: AnswerValue.no,
                 selected: widget.selectedAnswer,
-                activeColor: AppColors.error,
+                activeColor: AppColors.primary,
                 onTap: widget.onAnswerSelected,
               ),
             ],
@@ -164,28 +164,49 @@ class _AudioControlsState extends State<_AudioControls> {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (_isPlayingThis) ...[
-          IconButton(
-            onPressed: () => tts.stop(),
-            icon: const Icon(Icons.stop_circle_rounded, color: AppColors.error, size: 24),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+          Semantics(
+            label: 'Stop speech audio',
+            button: true,
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: IconButton(
+                onPressed: () => tts.stop(),
+                icon: const Icon(Icons.stop_circle_rounded, color: AppColors.error, size: 24),
+                padding: EdgeInsets.zero,
+              ),
+            ),
           ),
           const SizedBox(width: AppSpacing.s),
-          IconButton(
-            onPressed: () => tts.speak(widget.text),
-            icon: const Icon(Icons.replay_circle_filled_rounded, color: AppColors.primary, size: 24),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+          Semantics(
+            label: 'Replay speech audio',
+            button: true,
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: IconButton(
+                onPressed: () => tts.speak(widget.text),
+                icon: const Icon(Icons.replay_circle_filled_rounded, color: AppColors.primary, size: 24),
+                padding: EdgeInsets.zero,
+              ),
+            ),
           ),
         ] else
-          IconButton(
-            onPressed: () {
-              setState(() => _isPlayingThis = true);
-              tts.speak(widget.text);
-            },
-            icon: const Icon(Icons.play_circle_fill_rounded, color: AppColors.primary, size: 28),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+          Semantics(
+            label: 'Play question speech audio',
+            button: true,
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: IconButton(
+                onPressed: () {
+                  setState(() => _isPlayingThis = true);
+                  tts.speak(widget.text);
+                },
+                icon: const Icon(Icons.play_circle_fill_rounded, color: AppColors.primary, size: 28),
+                padding: EdgeInsets.zero,
+              ),
+            ),
           ),
       ],
     );
@@ -212,28 +233,33 @@ class _AnswerChip extends StatelessWidget {
     final isSelected = selected == value;
 
     return Expanded(
-      child: InkWell(
-        onTap: () => onTap(value),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusS),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? activeColor.withValues(alpha: 0.1)
-                : AppColors.surface,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusS),
-            border: Border.all(
-              color: isSelected ? activeColor : AppColors.border,
-              width: isSelected ? 2 : 1,
+      child: Semantics(
+        label: 'Answer option: $label',
+        selected: isSelected,
+        button: true,
+        child: InkWell(
+          onTap: () => onTap(value),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusS),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.s),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? activeColor.withValues(alpha: 0.1)
+                  : AppColors.surface,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusS),
+              border: Border.all(
+                color: isSelected ? activeColor : AppColors.border,
+                width: isSelected ? 2 : 1,
+              ),
             ),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: AppTextStyles.caption.copyWith(
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              color: isSelected ? activeColor : AppColors.textSecondary,
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              style: AppTextStyles.caption.copyWith(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? activeColor : AppColors.textSecondary,
+              ),
             ),
           ),
         ),

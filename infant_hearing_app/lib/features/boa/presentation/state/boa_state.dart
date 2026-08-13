@@ -43,6 +43,20 @@ class BoaState {
   final String? cvExplanation;
   final int? responseLatencyMs;
 
+  // ── NEW: UX + Recording fields ─────────────────────────────────────────────
+
+  /// Countdown in seconds during awaitingResponse phase (8 → 0).
+  final int remainingResponseSeconds;
+
+  /// The current clinical trial number (1-indexed, excludes catch trials).
+  final int trialNumber;
+
+  /// Path to the locally saved video file for this session.
+  final String? localVideoPath;
+
+  /// Qualitative quality of the current CV frame pipeline.
+  final CvFrameQuality cvFrameQuality;
+
   const BoaState({
     this.phase = BoaTestPhase.idle,
     this.currentDbLevel = BoaDbLevel.db70,
@@ -73,6 +87,10 @@ class BoaState {
     this.detectedBehaviors = const [],
     this.cvExplanation,
     this.responseLatencyMs,
+    this.remainingResponseSeconds = 0,
+    this.trialNumber = 0,
+    this.localVideoPath,
+    this.cvFrameQuality = CvFrameQuality.unknown,
   });
 
   BoaState copyWith({
@@ -109,6 +127,10 @@ class BoaState {
     String? cvExplanation,
     bool clearCvExplanation = false,
     int? responseLatencyMs,
+    int? remainingResponseSeconds,
+    int? trialNumber,
+    String? localVideoPath,
+    CvFrameQuality? cvFrameQuality,
   }) {
     return BoaState(
       phase: phase ?? this.phase,
@@ -140,6 +162,10 @@ class BoaState {
       detectedBehaviors: detectedBehaviors ?? this.detectedBehaviors,
       cvExplanation: clearCvExplanation ? null : (cvExplanation ?? this.cvExplanation),
       responseLatencyMs: responseLatencyMs ?? this.responseLatencyMs,
+      remainingResponseSeconds: remainingResponseSeconds ?? this.remainingResponseSeconds,
+      trialNumber: trialNumber ?? this.trialNumber,
+      localVideoPath: localVideoPath ?? this.localVideoPath,
+      cvFrameQuality: cvFrameQuality ?? this.cvFrameQuality,
     );
   }
 
@@ -172,4 +198,23 @@ class BoaState {
   int get catchTrialCount => trials.where((t) => t.isCatchTrial).length;
   int get falsePositiveCount =>
       trials.where((t) => t.isCatchTrial && t.response == BoaResponse.responseDetected).length;
+}
+
+/// Quality level of the current CV frame pipeline.
+enum CvFrameQuality {
+  unknown, // Not yet determined
+  poor,    // Low brightness or face not found
+  marginal, // Face visible but small/partially occluded
+  good,    // Good face visibility, calibrated baseline
+}
+
+extension CvFrameQualityX on CvFrameQuality {
+  String get label {
+    switch (this) {
+      case CvFrameQuality.unknown:  return 'Initializing...';
+      case CvFrameQuality.poor:     return 'Poor — Move Closer';
+      case CvFrameQuality.marginal: return 'Marginal — Adjust';
+      case CvFrameQuality.good:     return 'Good';
+    }
+  }
 }
