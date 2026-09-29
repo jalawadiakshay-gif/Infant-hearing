@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { cn, getResultBg, getAgeLabel, formatDate } from "@/lib/utils";
 import type { Child, Screening } from "@/lib/types";
+import PdfViewerModal from "@/components/pdf-viewer-modal";
 
 // ── Video Modal ──────────────────────────────────────────────────────────────
 
@@ -161,9 +162,11 @@ function QuestionnaireAnswers({ answers }: { answers: Record<string, string> }) 
 function ScreeningCard({
   screening,
   onPlayVideo,
+  onViewPdf,
 }: {
   screening: Screening & { b?: any; q?: any };
   onPlayVideo: (url: string) => void;
+  onViewPdf: (url: string, title: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const isBoa = screening.type === "boa";
@@ -235,16 +238,19 @@ function ScreeningCard({
             </button>
           )}
           {screening.pdfUrl && (
-            <a
-              href={screening.pdfUrl}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="w-7 h-7 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 hover:bg-rose-100 transition-all shadow-sm"
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewPdf(
+                  screening.pdfUrl!,
+                  `${screening.type === "boa" ? "BOA" : "Questionnaire"} Report — ${screening.screeningId.slice(0, 8)}`
+                );
+              }}
+              className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 flex items-center justify-center text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all shadow-sm"
               title="View PDF report"
             >
               <FileText className="w-3.5 h-3.5" />
-            </a>
+            </button>
           )}
         </div>
 
@@ -344,20 +350,33 @@ function ScreeningCard({
 
           {/* PDF section */}
           {screening.pdfUrl && (
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-rose-50 border border-rose-100 shadow-sm">
-              <FileText className="w-5 h-5 text-rose-600 shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-bold text-rose-900">PDF Report Available</p>
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 shadow-sm">
+              <FileText className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-rose-900 dark:text-rose-300">PDF Report Available</p>
                 <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono truncate">{screening.pdfUrl}</p>
               </div>
-              <a
-                href={screening.pdfUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-rose-100 border border-rose-200 text-rose-700 text-xs hover:bg-rose-200 transition-all font-bold shadow-sm"
-              >
-                <Download className="w-3.5 h-3.5" /> Open PDF
-              </a>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewPdf(
+                      screening.pdfUrl!,
+                      `${screening.type === "boa" ? "BOA" : "Questionnaire"} Report — ${screening.screeningId.slice(0, 8)}`
+                    );
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-rose-600 text-white text-xs hover:bg-rose-700 transition-all font-bold shadow-sm"
+                >
+                  <FileText className="w-3.5 h-3.5" /> View PDF
+                </button>
+                <a
+                  href={screening.pdfUrl}
+                  download
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-rose-100 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-400 text-xs hover:bg-rose-200 transition-all font-bold shadow-sm"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download
+                </a>
+              </div>
             </div>
           )}
         </div>
@@ -377,6 +396,7 @@ export default function ChildDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [pdfModal, setPdfModal] = useState<{ url: string; title: string } | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Filter state
@@ -446,6 +466,13 @@ export default function ChildDetailPage() {
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       {videoUrl && <VideoModal url={videoUrl} onClose={() => setVideoUrl(null)} />}
+      {pdfModal && (
+        <PdfViewerModal
+          url={pdfModal.url}
+          title={pdfModal.title}
+          onClose={() => setPdfModal(null)}
+        />
+      )}
 
       {/* ── Back + Title ── */}
       <div className="flex items-center gap-4">
@@ -611,6 +638,7 @@ export default function ChildDetailPage() {
                 key={s.screeningId}
                 screening={s as any}
                 onPlayVideo={setVideoUrl}
+                onViewPdf={(url, title) => setPdfModal({ url, title })}
               />
             ))}
           </div>

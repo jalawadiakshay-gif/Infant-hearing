@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Search, Play, FileText, Filter, Video, ExternalLink, Mic, ClipboardList, X, Download } from "lucide-react";
 import { cn, getResultBg, formatDate } from "@/lib/utils";
 import type { Screening } from "@/lib/types";
+import PdfViewerModal from "@/components/pdf-viewer-modal";
 
 const TYPE_OPTS = ["all", "boa", "q"];
 const RESULT_OPTS = ["all", "pass", "refer", "monitor", "incomplete"];
@@ -67,6 +68,7 @@ export default function ScreeningsPage() {
   const [type, setType] = useState("all");
   const [result, setResult] = useState("all");
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [pdfModal, setPdfModal] = useState<{ url: string; title: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -103,6 +105,13 @@ export default function ScreeningsPage() {
   return (
     <div className="p-6 space-y-5">
       {videoUrl && <VideoModal url={videoUrl} onClose={() => setVideoUrl(null)} />}
+      {pdfModal && (
+        <PdfViewerModal
+          url={pdfModal.url}
+          title={pdfModal.title}
+          onClose={() => setPdfModal(null)}
+        />
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -264,16 +273,19 @@ export default function ScreeningsPage() {
                           <div className="w-8 h-8" />
                         )}
                         {s.pdfUrl ? (
-                          <a
-                            href={s.pdfUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-8 h-8 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 hover:bg-rose-100 transition-all shadow-sm"
-                            title="Open PDF report"
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPdfModal({
+                                url: s.pdfUrl!,
+                                title: `${s.type === "boa" ? "BOA" : "Questionnaire"} Report — ${s.childId.slice(0, 8)}`,
+                              });
+                            }}
+                            className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 flex items-center justify-center text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all shadow-sm"
+                            title="View PDF report"
                           >
                             <FileText className="w-3.5 h-3.5" />
-                          </a>
+                          </button>
                         ) : (
                           <div className="w-8 h-8" />
                         )}
