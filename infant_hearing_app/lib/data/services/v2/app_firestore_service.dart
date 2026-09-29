@@ -4,12 +4,37 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:uuid/uuid.dart';
-
+import 'package:video_compress/video_compress.dart';
 import 'package:infant_hearing_app/data/models/v2/app_user.dart';
 import 'package:infant_hearing_app/data/models/v2/child.dart';
 import 'package:infant_hearing_app/data/models/v2/screening.dart';
 import 'package:infant_hearing_app/data/models/v2/referral.dart';
 import 'package:infant_hearing_app/data/models/v2/followup.dart';
+
+// ── Max video size allowed for upload (5 MB) ───────────────────────────────
+const int _kMaxVideoBytes = 5 * 1024 * 1024; // 5 MB
+
+/// Result returned from [AppFirestoreService.uploadScreeningMedia].
+/// Distinguishes success from partial/total failure so the UI can react.
+class UploadResult {
+  final String? videoUrl;
+  final String? pdfUrl;
+  final String? videoError; // Non-null if video upload failed or was skipped
+  final String? pdfError;   // Non-null if PDF upload failed
+
+  const UploadResult({
+    this.videoUrl,
+    this.pdfUrl,
+    this.videoError,
+    this.pdfError,
+  });
+
+  bool get videoUploaded => videoUrl != null;
+  bool get pdfUploaded   => pdfUrl != null;
+
+  /// True when at least one media item failed.
+  bool get hasError => videoError != null || pdfError != null;
+}
 
 /// Unified Firestore service for the Baalshravya app.
 /// Replaces FirestoreService, AshaFirestoreService, and all ApiServices.
@@ -159,43 +184,130 @@ class AppFirestoreService {
     });
   }
 
-  /// Uploads screening media (video and pdf) to Firebase Storage
-  /// Returns a map with 'videoUrl' and 'pdfUrl'
-  Future<Map<String, String>> uploadScreeningMedia(
+  // ─── Video Compression ────────────────────────────────────────────────────
+
+  /// Compresses [videoPath] to MediumQuality (targets ~4–5 MB for a 30-60s clip).
+  ///
+  /// Falls back to LowQuality if the file is still over [_kMaxVideoBytes].
+  /// Audio track is stripped — BOA stimuli are played through the device speaker,
+  /// not recorded, so the audio channel is always silent and wasted bytes.
+  ///
+  /// Returns the compressed file path. The original is preserved for local ML
+  /// training. The returned temp file MUST be deleted by the caller after upload.
+  Future<String> _compressVideo(String videoPath) async {
+    debugPrint('[AppFirestoreService] Compressing video: $videoPath');
+
+    final MediaInfo? info = await VideoCompress.compressVideo(
+      videoPath,
+      quality: VideoQuality.MediumQuality,
+      deleteOrigin: false,  // preserve original for local ML training copies
+      includeAudio: false,  // BOA recordings carry no useful audio
+    );
+
+    if (info == null || info.path == null) {
+      throw Exception('[AppFirestoreService] video_compress returned null — compression failed.');
+    }
+
+    final sizeBytes = File(info.path!).lengthSync();
+    debugPrint('[AppFirestoreService] MediumQuality → ${(sizeBytes / (1024 * 1024)).toStringAsFixed(2)} MB');
+
+    // If still >5 MB, re-compress at LowQuality
+    if (sizeBytes > _kMaxVideoBytes) {
+      debugPrint('[AppFirestoreService] Still >5 MB — re-compressing at LowQuality…');
+      final MediaInfo? info2 = await VideoCompress.compressVideo(
+        info.path!,
+        quality: VideoQuality.LowQuality,
+        deleteOrigin: false,
+        includeAudio: false,
+      );
+      if (info2 == null || info2.path == null) {
+        throw Exception('[AppFirestoreService] LowQuality re-compression failed.');
+      }
+      final size2 = File(info2.path!).lengthSync();
+      debugPrint('[AppFirestoreService] LowQuality → ${(size2 / (1024 * 1024)).toStringAsFixed(2)} MB');
+      return info2.path!;
+    }
+
+    return info.path!;
+  }
+
+  // ─── Media Upload ──────────────────────────────────────────────────────────
+
+  /// Uploads compressed screening media (video and PDF) to Firebase Storage.
+  ///
+  /// **Video is compressed to <5 MB before upload.**
+  /// Returns an [UploadResult]. Callers MUST check [UploadResult.hasError] to
+  /// surface failures in the UI or schedule a background retry.
+  ///
+  /// This method NEVER silently swallows errors — each error is captured in
+  /// [UploadResult.videoError] / [UploadResult.pdfError] so the Firestore
+  /// screening document is still saved even when media upload fails.
+  Future<UploadResult> uploadScreeningMedia(
     String screeningId, {
     String? videoPath,
     Uint8List? pdfBytes,
   }) async {
-    final urls = <String, String>{};
+    String? videoUrl;
+    String? pdfUrl;
+    String? videoError;
+    String? pdfError;
+    String? compressedPath; // tracked for cleanup in finally block
 
-    try {
-      if (videoPath != null && videoPath.isNotEmpty) {
-        final ref = _storage.ref().child('screenings/$screeningId/video.mp4');
-        final file = File(videoPath);
-        if (file.existsSync()) {
-          final uploadTask = await ref.putFile(
-            file, 
+    // ── 1. VIDEO ───────────────────────────────────────────────────────────
+    if (videoPath != null && videoPath.isNotEmpty) {
+      final sourceFile = File(videoPath);
+      if (!sourceFile.existsSync()) {
+        videoError = 'Video file not found on device: $videoPath';
+        debugPrint('[AppFirestoreService] ⚠ $videoError');
+      } else {
+        try {
+          compressedPath = await _compressVideo(videoPath);
+          final ref = _storage.ref().child('screenings/$screeningId/video.mp4');
+          final task = await ref.putFile(
+            File(compressedPath),
             SettableMetadata(contentType: 'video/mp4'),
           );
-          urls['videoUrl'] = await uploadTask.ref.getDownloadURL();
+          videoUrl = await task.ref.getDownloadURL();
+          debugPrint('[AppFirestoreService] ✓ Video uploaded: $videoUrl');
+        } catch (e, st) {
+          videoError = 'Video upload failed: $e';
+          debugPrint('[AppFirestoreService] ✗ $videoError\n$st');
+        } finally {
+          // Always delete the temp compressed file — original is kept intact
+          if (compressedPath != null && compressedPath != videoPath) {
+            try {
+              final tmp = File(compressedPath);
+              if (tmp.existsSync()) tmp.deleteSync();
+              debugPrint('[AppFirestoreService] Temp compressed file cleaned up.');
+            } catch (_) {}
+          }
+          VideoCompress.cancelCompression();
         }
       }
+    }
 
-      if (pdfBytes != null && pdfBytes.isNotEmpty) {
+    // ── 2. PDF ─────────────────────────────────────────────────────────────
+    if (pdfBytes != null && pdfBytes.isNotEmpty) {
+      try {
         final ref = _storage.ref().child('screenings/$screeningId/report.pdf');
-        final uploadTask = await ref.putData(
+        final task = await ref.putData(
           pdfBytes,
           SettableMetadata(contentType: 'application/pdf'),
         );
-        urls['pdfUrl'] = await uploadTask.ref.getDownloadURL();
+        pdfUrl = await task.ref.getDownloadURL();
+        debugPrint('[AppFirestoreService] ✓ PDF uploaded: $pdfUrl');
+      } catch (e, st) {
+        pdfError = 'PDF upload failed: $e';
+        debugPrint('[AppFirestoreService] ✗ $pdfError\n$st');
       }
-    } catch (e) {
-      debugPrint('[AppFirestoreService] Media upload error: $e');
-      // If upload fails, we swallow it here so the screening can still submit
-      // In production, we might want to throw or queue for retry
     }
 
-    return urls;
+    return UploadResult(
+      videoUrl: videoUrl,
+      pdfUrl: pdfUrl,
+      videoError: videoError,
+      pdfError: pdfError,
+    );
   }
 
   // ─── Referrals ─────────────────────────────────────────────────────────────

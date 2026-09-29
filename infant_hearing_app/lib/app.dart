@@ -52,7 +52,7 @@ class _InfantHearingAppState extends State<InfantHearingApp> {
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
-            themeMode: ThemeMode.system,
+            themeMode: ThemeMode.light,
             locale: langProvider.locale,
             supportedLocales: AppLocalizations.supportedLocales,
             localizationsDelegates: const [

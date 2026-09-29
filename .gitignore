@@ -1,2 +1,56 @@
-*.apk
+# ============================================================
+# SENSITIVE / SECRETS — NEVER PUSH
+# ============================================================
+serviceAccountKey.json
+*serviceAccount*.json
+*.env
+.env.*
+google-services.json
+GoogleService-Info.plist
 
+# ============================================================
+# BUILD ARTIFACTS & BINARIES
+# ============================================================
+*.apk
+*.aab
+*.ipa
+*.exe
+*.dll
+*.so
+*.dylib
+
+# ============================================================
+# DATABASE / LOCAL DATA EXPORTS
+# ============================================================
+*.sqlite
+*.sqlite3
+*.db
+
+# ============================================================
+# FLUTTER / DART GENERATED FILES
+# ============================================================
+infant_hearing_app/.dart_tool/
+infant_hearing_app/build/
+infant_hearing_app/.flutter-plugins
+infant_hearing_app/.flutter-plugins-dependencies
+infant_hearing_app/.artifacts/
+infant_hearing_app/.pub-cache/
+infant_hearing_app/.pub/
+infant_hearing_app/doc/api/
+
+# ============================================================
+# IDE / EDITOR SETTINGS
+# ============================================================
+.idea/
+.cursor/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# ============================================================
+# OS GENERATED FILES
+# ============================================================
+.DS_Store
+Thumbs.db
+desktop.ini

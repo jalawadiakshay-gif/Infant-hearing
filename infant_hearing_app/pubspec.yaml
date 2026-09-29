@@ -55,6 +55,7 @@ dependencies:
   connectivity_plus: ^6.0.3
   flutter_local_notifications: ^17.1.2
   syncfusion_flutter_charts: ^28.1.38
+  video_compress: ^3.1.2       # Compress BOA recordings to <5 MB before upload
 
 dev_dependencies:
   flutter_test:

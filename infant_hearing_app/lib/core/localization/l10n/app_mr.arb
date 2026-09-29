@@ -170,7 +170,7 @@
   "enterPhoneHint": "10 अंकी नंबर प्रविष्ट करा",
   "exactDigitsRequired": "नेमके 10 अंक आवश्यक आहेत",
   "numbersOnly": "फक्त अंक",
-  "otpSentSuccess": "OTP यशस्वीरित्या पाठवला (Mock: 123456)",
+  "otpSentSuccess": "OTP यशस्वीरित्या पाठवला! कृपया आपला SMS तपासा",
   "failedSendOtp": "OTP पाठवणे अयशस्वी",
   "verificationCode": "पडताळणी कोड",
   "enterOtpHint": "6 अंकी OTP प्रविष्ट करा",

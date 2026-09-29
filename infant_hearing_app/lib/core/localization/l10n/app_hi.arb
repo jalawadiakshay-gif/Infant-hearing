@@ -153,7 +153,7 @@
   "enterPhoneHint": "10 अंकों का नंबर दर्ज करें",
   "exactDigitsRequired": "ठीक 10 अंक आवश्यक हैं",
   "numbersOnly": "केवल अंक",
-  "otpSentSuccess": "OTP सफलतापूर्वक भेजा गया (Mock: 123456)",
+  "otpSentSuccess": "OTP सफलतापूर्वक भेजा गया! कृपया अपना SMS जांचें",
   "failedSendOtp": "OTP भेजने में विफल",
   "verificationCode": "सत्यापन कोड",
   "enterOtpHint": "6 अंकों का OTP दर्ज करें",

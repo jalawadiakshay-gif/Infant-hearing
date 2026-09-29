@@ -13,6 +13,7 @@ import '../../domain/boa_models.dart';
 import '../state/boa_state.dart';
 import '../../services/boa_audio_service.dart';
 import '../../services/boa_cv_service.dart';
+// UploadResult is defined in app_firestore_service.dart
 
 /// Production-grade BOA Controller.
 ///
@@ -547,11 +548,25 @@ class BoaController extends ChangeNotifier {
 
       final screeningId = const Uuid().v4();
 
-      final urls = await firestoreService!.uploadScreeningMedia(
+      // ── Compress & upload media — surface failures to UI ──────────────────
+      final uploadResult = await firestoreService!.uploadScreeningMedia(
         screeningId,
         videoPath: videoPath,
         pdfBytes: pdfBytes,
       );
+
+      if (uploadResult.hasError) {
+        final errors = [
+          if (uploadResult.videoError != null) 'Video: ${uploadResult.videoError}',
+          if (uploadResult.pdfError != null)   'PDF: ${uploadResult.pdfError}',
+        ].join('\n');
+        debugPrint('[BoaCtrl] ⚠ Media upload issues:\n$errors');
+        // Surface to UI — the screening result is still saved below
+        _state = _state.copyWith(
+          errorMessage: 'Result saved. Media upload failed — will retry when online.\n$errors',
+        );
+        _safeNotify();
+      }
 
       final screening = Screening(
         screeningId: screeningId,
@@ -564,13 +579,18 @@ class BoaController extends ChangeNotifier {
         boaNoiseDb: _state.noiseLevel,
         boaTrials: trialsList,
         clipPath: clipPath,
-        videoUrl: urls['videoUrl'],
-        pdfUrl: urls['pdfUrl'],
+        videoUrl: uploadResult.videoUrl,   // null if upload failed — stored later
+        pdfUrl: uploadResult.pdfUrl,
       );
 
+      // Screening doc is ALWAYS saved — upload failures do not block this
       await firestoreService!.submitScreening(screening);
     } catch (e) {
       debugPrint('[BoaCtrl] submitResult error: $e');
+      _state = _state.copyWith(
+        errorMessage: 'Failed to save screening result. Please try again.\nError: $e',
+      );
+      _safeNotify();
     }
   }
 

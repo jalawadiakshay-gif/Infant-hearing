@@ -153,7 +153,7 @@
   "enterPhoneHint": "10 ಅಂಕಿಯ ಸಂಖ್ಯೆ ನಮೂದಿಸಿ",
   "exactDigitsRequired": "ಖಚಿತವಾಗಿ 10 ಅಂಕಿಗಳು ಅಗತ್ಯ",
   "numbersOnly": "ಸಂಖ್ಯೆಗಳು ಮಾತ್ರ",
-  "otpSentSuccess": "OTP ಯಶಸ್ವಿಯಾಗಿ ಕಳುಹಿಸಲಾಗಿದೆ (Mock: 123456)",
+  "otpSentSuccess": "OTP ಯಶಸ್ವಿಯಾಗಿ ಕಳುಹಿಸಲಾಗಿದೆ! ನಿಮ್ಮ SMS ಪರಿಶೀಲಿಸಿ",
   "failedSendOtp": "OTP ಕಳುಹಿಸಲು ವಿಫಲವಾಗಿದೆ",
   "verificationCode": "ಪರಿಶೀಲನಾ ಕೋಡ್",
   "enterOtpHint": "6 ಅಂಕಿಯ OTP ನಮೂದಿಸಿ",

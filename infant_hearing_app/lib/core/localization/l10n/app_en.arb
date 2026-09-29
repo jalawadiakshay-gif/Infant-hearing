@@ -170,7 +170,7 @@
   "enterPhoneHint": "Enter 10 digit number",
   "exactDigitsRequired": "Exactly 10 digits required",
   "numbersOnly": "Numbers only",
-  "otpSentSuccess": "OTP sent successfully (Mock: 123456)",
+  "otpSentSuccess": "OTP sent successfully! Please check your SMS.",
   "failedSendOtp": "Failed to send OTP",
   "verificationCode": "Verification Code",
   "enterOtpHint": "Enter 6-digit OTP",
