@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
     ],
   },
   serverExternalPackages: ["firebase-admin"],
+  experimental: {
+    // Use worker threads for Turbopack CSS processing (Windows compatibility)
+    turbopackPluginRuntimeStrategy: "workerThreads",
+  },
 };
 
 export default nextConfig;
